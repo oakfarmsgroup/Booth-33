@@ -1,0 +1,476 @@
+import React, { useState } from 'react';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+
+export default function AdminBookingsScreen() {
+  const [filter, setFilter] = useState('pending'); // 'pending', 'confirmed', 'completed', 'cancelled'
+
+  const [bookings, setBookings] = useState([
+    { 
+      id: 1, 
+      user: 'Mike Soundz', 
+      email: 'mike@email.com',
+      type: 'music', 
+      date: 'Oct 28, 2025', 
+      time: '2:00 PM', 
+      duration: '2 hours',
+      price: 150,
+      status: 'pending',
+      notes: 'Need to record 3 songs for my EP'
+    },
+    { 
+      id: 2, 
+      user: 'Sarah Johnson', 
+      email: 'sarah@email.com',
+      type: 'podcast', 
+      date: 'Oct 28, 2025', 
+      time: '4:00 PM', 
+      duration: '2 hours',
+      price: 150,
+      status: 'pending',
+      notes: 'Interview episode with special guest'
+    },
+    { 
+      id: 3, 
+      user: 'Jay Beats', 
+      email: 'jay@email.com',
+      type: 'music', 
+      date: 'Oct 29, 2025', 
+      time: '10:00 AM', 
+      duration: '2 hours',
+      price: 150,
+      status: 'pending',
+      notes: ''
+    },
+    { 
+      id: 4, 
+      user: 'Lisa Chen', 
+      email: 'lisa@email.com',
+      type: 'podcast', 
+      date: 'Oct 27, 2025', 
+      time: '3:00 PM', 
+      duration: '2 hours',
+      price: 150,
+      status: 'confirmed',
+      notes: 'Regular weekly recording'
+    },
+    { 
+      id: 5, 
+      user: 'Marcus Smith', 
+      email: 'marcus@email.com',
+      type: 'music', 
+      date: 'Oct 25, 2025', 
+      time: '1:00 PM', 
+      duration: '2 hours',
+      price: 150,
+      status: 'completed',
+      notes: ''
+    },
+  ]);
+
+  const handleApprove = (booking) => {
+    Alert.alert(
+      'Approve Booking',
+      `Confirm booking for ${booking.user}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Approve',
+          onPress: () => {
+            setBookings(bookings.map(b => 
+              b.id === booking.id ? { ...b, status: 'confirmed' } : b
+            ));
+            Alert.alert('Success', 'Booking approved! User will be notified.');
+          },
+        },
+      ]
+    );
+  };
+
+  const handleReject = (booking) => {
+    Alert.alert(
+      'Reject Booking',
+      `Reject booking for ${booking.user}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reject',
+          style: 'destructive',
+          onPress: () => {
+            setBookings(bookings.map(b => 
+              b.id === booking.id ? { ...b, status: 'cancelled' } : b
+            ));
+            Alert.alert('Rejected', 'Booking rejected. User will be notified.');
+          },
+        },
+      ]
+    );
+  };
+
+  const filteredBookings = bookings.filter(b => b.status === filter);
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'pending': return { bg: 'rgba(245, 158, 11, 0.2)', text: '#F59E0B' };
+      case 'confirmed': return { bg: 'rgba(16, 185, 129, 0.2)', text: '#10B981' };
+      case 'completed': return { bg: 'rgba(59, 130, 246, 0.2)', text: '#3B82F6' };
+      case 'cancelled': return { bg: 'rgba(239, 68, 68, 0.2)', text: '#EF4444' };
+      default: return { bg: 'rgba(255, 255, 255, 0.1)', text: '#666' };
+    }
+  };
+
+  const getFilterCount = (status) => {
+    return bookings.filter(b => b.status === status).length;
+  };
+
+  return (
+    <View style={styles.container}>
+      <LinearGradient
+        colors={['#0F0F0F', '#1A0F2E', '#0F0F0F']}
+        style={styles.gradient}
+      >
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Bookings</Text>
+          <View style={styles.totalBadge}>
+            <Text style={styles.totalText}>{bookings.length} Total</Text>
+          </View>
+        </View>
+
+        {/* Filter Tabs */}
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          style={styles.filterScroll}
+          contentContainerStyle={styles.filterContainer}
+        >
+          <TouchableOpacity 
+            style={[styles.filterTab, filter === 'pending' && styles.filterTabActive]}
+            onPress={() => setFilter('pending')}
+          >
+            <Text style={[styles.filterText, filter === 'pending' && styles.filterTextActive]}>
+              Pending ({getFilterCount('pending')})
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[styles.filterTab, filter === 'confirmed' && styles.filterTabActive]}
+            onPress={() => setFilter('confirmed')}
+          >
+            <Text style={[styles.filterText, filter === 'confirmed' && styles.filterTextActive]}>
+              Confirmed ({getFilterCount('confirmed')})
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[styles.filterTab, filter === 'completed' && styles.filterTabActive]}
+            onPress={() => setFilter('completed')}
+          >
+            <Text style={[styles.filterText, filter === 'completed' && styles.filterTextActive]}>
+              Completed ({getFilterCount('completed')})
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[styles.filterTab, filter === 'cancelled' && styles.filterTabActive]}
+            onPress={() => setFilter('cancelled')}
+          >
+            <Text style={[styles.filterText, filter === 'cancelled' && styles.filterTextActive]}>
+              Cancelled ({getFilterCount('cancelled')})
+            </Text>
+          </TouchableOpacity>
+        </ScrollView>
+
+        {/* Bookings List */}
+        <ScrollView 
+          style={styles.scrollView}
+          showsVerticalScrollIndicator={false}
+        >
+          {filteredBookings.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyIcon}>📋</Text>
+              <Text style={styles.emptyText}>No {filter} bookings</Text>
+            </View>
+          ) : (
+            filteredBookings.map((booking) => {
+              const statusColors = getStatusColor(booking.status);
+              
+              return (
+                <View key={booking.id} style={styles.bookingCard}>
+                  {/* Header */}
+                  <View style={styles.bookingHeader}>
+                    <View style={styles.bookingHeaderLeft}>
+                      <Text style={styles.bookingIcon}>
+                        {booking.type === 'music' ? '🎵' : '🎙️'}
+                      </Text>
+                      <View>
+                        <Text style={styles.bookingUser}>{booking.user}</Text>
+                        <Text style={styles.bookingEmail}>{booking.email}</Text>
+                      </View>
+                    </View>
+                    <View style={[styles.statusBadge, { backgroundColor: statusColors.bg }]}>
+                      <Text style={[styles.statusText, { color: statusColors.text }]}>
+                        {booking.status}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Details */}
+                  <View style={styles.bookingDetails}>
+                    <View style={styles.detailRow}>
+                      <Text style={styles.detailLabel}>Type:</Text>
+                      <Text style={styles.detailValue}>
+                        {booking.type === 'music' ? 'Music Recording' : 'Podcast Recording'}
+                      </Text>
+                    </View>
+                    <View style={styles.detailRow}>
+                      <Text style={styles.detailLabel}>Date:</Text>
+                      <Text style={styles.detailValue}>{booking.date}</Text>
+                    </View>
+                    <View style={styles.detailRow}>
+                      <Text style={styles.detailLabel}>Time:</Text>
+                      <Text style={styles.detailValue}>{booking.time}</Text>
+                    </View>
+                    <View style={styles.detailRow}>
+                      <Text style={styles.detailLabel}>Duration:</Text>
+                      <Text style={styles.detailValue}>{booking.duration}</Text>
+                    </View>
+                    <View style={styles.detailRow}>
+                      <Text style={styles.detailLabel}>Price:</Text>
+                      <Text style={styles.detailValuePrice}>${booking.price}</Text>
+                    </View>
+                    {booking.notes && (
+                      <View style={styles.notesContainer}>
+                        <Text style={styles.notesLabel}>Notes:</Text>
+                        <Text style={styles.notesText}>{booking.notes}</Text>
+                      </View>
+                    )}
+                  </View>
+
+                  {/* Actions (for pending bookings) */}
+                  {booking.status === 'pending' && (
+                    <View style={styles.actionsContainer}>
+                      <TouchableOpacity 
+                        style={styles.rejectButton}
+                        onPress={() => handleReject(booking)}
+                      >
+                        <Text style={styles.rejectButtonText}>Reject</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity 
+                        style={styles.approveButton}
+                        onPress={() => handleApprove(booking)}
+                      >
+                        <LinearGradient
+                          colors={['#10B981', '#059669']}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 0 }}
+                          style={styles.approveGradient}
+                        >
+                          <Text style={styles.approveButtonText}>Approve</Text>
+                        </LinearGradient>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </View>
+              );
+            })
+          )}
+
+          <View style={{ height: 40 }} />
+        </ScrollView>
+      </LinearGradient>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#0F0F0F',
+  },
+  gradient: {
+    flex: 1,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 60,
+    paddingBottom: 20,
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: '900',
+    color: '#FFFFFF',
+  },
+  totalBadge: {
+    backgroundColor: 'rgba(245, 158, 11, 0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  totalText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#F59E0B',
+  },
+  filterScroll: {
+    marginBottom: 12,
+  },
+  filterContainer: {
+    paddingHorizontal: 20,
+    gap: 6,
+  },
+  filterTab: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 16,
+    marginRight: 6,
+  },
+  filterTabActive: {
+    backgroundColor: 'rgba(245, 158, 11, 0.2)',
+  },
+  filterText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#666',
+  },
+  filterTextActive: {
+    color: '#F59E0B',
+  },
+  scrollView: {
+    flex: 1,
+    paddingHorizontal: 20,
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  emptyIcon: {
+    fontSize: 64,
+    marginBottom: 16,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#666',
+  },
+  bookingCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.2)',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+  },
+  bookingHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(245, 158, 11, 0.1)',
+  },
+  bookingHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  bookingIcon: {
+    fontSize: 32,
+    marginRight: 12,
+  },
+  bookingUser: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 4,
+  },
+  bookingEmail: {
+    fontSize: 12,
+    color: '#666',
+  },
+  statusBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  statusText: {
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'capitalize',
+  },
+  bookingDetails: {
+    marginBottom: 16,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  detailLabel: {
+    fontSize: 14,
+    color: '#666',
+  },
+  detailValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  detailValuePrice: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#10B981',
+  },
+  notesContainer: {
+    marginTop: 8,
+    padding: 12,
+    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+    borderRadius: 8,
+  },
+  notesLabel: {
+    fontSize: 12,
+    color: '#F59E0B',
+    marginBottom: 4,
+    fontWeight: '600',
+  },
+  notesText: {
+    fontSize: 14,
+    color: '#FFFFFF',
+    lineHeight: 20,
+  },
+  actionsContainer: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  rejectButton: {
+    flex: 1,
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.3)',
+    borderRadius: 12,
+    padding: 14,
+    alignItems: 'center',
+  },
+  rejectButtonText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#EF4444',
+  },
+  approveButton: {
+    flex: 1,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  approveGradient: {
+    padding: 14,
+    alignItems: 'center',
+  },
+  approveButtonText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+});
