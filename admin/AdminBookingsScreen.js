@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 
 export default function AdminBookingsScreen() {
@@ -124,7 +125,7 @@ export default function AdminBookingsScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <LinearGradient
         colors={['#0F0F0F', '#1A0F2E', '#0F0F0F']}
         style={styles.gradient}
@@ -279,7 +280,7 @@ export default function AdminBookingsScreen() {
           <View style={{ height: 40 }} />
         </ScrollView>
       </LinearGradient>
-    </View>
+    </SafeAreaView>
   );
 }
 

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Modal, TextInput, Alert } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useCredits } from '../contexts/CreditsContext';
 import { usePayment } from '../contexts/PaymentContext';
@@ -139,7 +140,7 @@ export default function AdminOverviewScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <LinearGradient
         colors={['#0F0F0F', '#1A0F2E', '#0F0F0F']}
         style={styles.gradient}
@@ -787,7 +788,7 @@ export default function AdminOverviewScreen() {
         </Modal>
 
       </LinearGradient>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -804,11 +805,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 20,
+    paddingTop: 40,
+    paddingBottom: 16,
   },
   headerTitle: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '900',
     color: '#FFFFFF',
   },
@@ -820,10 +821,12 @@ const styles = StyleSheet.create({
   statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(16, 185, 129, 0.2)',
-    paddingHorizontal: 12,
+    backgroundColor: 'rgba(16, 185, 129, 0.18)',
+    paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 12,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.3)'
   },
   statusDot: {
     width: 8,

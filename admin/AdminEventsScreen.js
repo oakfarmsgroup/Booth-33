@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput, Modal, Alert, Switch } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useBookings } from '../contexts/BookingsContext';
 
@@ -107,7 +108,7 @@ export default function AdminEventsScreen() {
   const availableDates = generateDates();
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <LinearGradient
         colors={['#0F0F0F', '#1A1A1A']}
         style={styles.gradient}
@@ -459,7 +460,7 @@ export default function AdminEventsScreen() {
           </View>
         </Modal>
       </LinearGradient>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -476,11 +477,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 20,
+    paddingTop: 40,
+    paddingBottom: 16,
   },
   headerTitle: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '800',
     color: '#FFFFFF',
   },

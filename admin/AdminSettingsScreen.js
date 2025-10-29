@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Switch, Alert } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 
 export default function AdminSettingsScreen({ onLogout }) {
@@ -47,7 +48,7 @@ export default function AdminSettingsScreen({ onLogout }) {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <LinearGradient
         colors={['#0F0F0F', '#1A0F0F', '#0F0F0F']}
         style={styles.gradient}
@@ -210,7 +211,7 @@ export default function AdminSettingsScreen({ onLogout }) {
           <View style={{ height: 100 }} />
         </ScrollView>
       </LinearGradient>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -224,17 +225,17 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 24,
+    paddingTop: 40,
+    paddingBottom: 16,
   },
   headerTitle: {
-    fontSize: 32,
+    fontSize: 24,
     fontWeight: '800',
     color: '#FFFFFF',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   headerSubtitle: {
-    fontSize: 15,
+    fontSize: 13,
     color: '#999',
   },
   section: {

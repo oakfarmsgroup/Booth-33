@@ -1,16 +1,17 @@
 import React, { useMemo, useState } from 'react';
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput, Modal, RefreshControl } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { TIERS, TIER_ORDER, getTierProgress, determineTier } from '../data/tierSystem';
 
 export default function AdminUsersScreen() {
-  // Mock users with minimal stats
+  // Mock users with enhanced analytics
   const [query, setQuery] = useState('');
   const users = [
-    { id: 1, name: 'Alex Rivera', username: 'alexrivera', stats: { sessionsBooked: 12, referrals: 1, postsCreated: 20, daysActive: 40, totalSpent: 1400 } },
-    { id: 2, name: 'Mike Soundz', username: 'mikesoundz', stats: { sessionsBooked: 3, referrals: 0, postsCreated: 5, daysActive: 9, totalSpent: 220 } },
-    { id: 3, name: 'Sarah J', username: 'sarahj', stats: { sessionsBooked: 28, referrals: 4, postsCreated: 44, daysActive: 90, totalSpent: 4200 } },
-    { id: 4, name: 'Producer Pro', username: 'producerpro', stats: { sessionsBooked: 8, referrals: 3, postsCreated: 18, daysActive: 30, totalSpent: 980 } },
+    { id: 1, name: 'Alex Rivera', username: 'alexrivera', stats: { sessionsBooked: 12, referrals: 1, postsCreated: 20, daysActive: 40, totalSpent: 1400 }, bookings: { total: 12, upcoming: 2, completed: 10 }, lastActive: '2 hours ago' },
+    { id: 2, name: 'Mike Soundz', username: 'mikesoundz', stats: { sessionsBooked: 3, referrals: 0, postsCreated: 5, daysActive: 9, totalSpent: 220 }, bookings: { total: 3, upcoming: 1, completed: 2 }, lastActive: '1 day ago' },
+    { id: 3, name: 'Sarah J', username: 'sarahj', stats: { sessionsBooked: 28, referrals: 4, postsCreated: 44, daysActive: 90, totalSpent: 4200 }, bookings: { total: 28, upcoming: 3, completed: 25 }, lastActive: '5 mins ago' },
+    { id: 4, name: 'Producer Pro', username: 'producerpro', stats: { sessionsBooked: 8, referrals: 3, postsCreated: 18, daysActive: 30, totalSpent: 980 }, bookings: { total: 8, upcoming: 0, completed: 8 }, lastActive: '3 days ago' },
   ];
 
   const filtered = useMemo(() => {
@@ -37,7 +38,7 @@ export default function AdminUsersScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <LinearGradient colors={['#0F0F0F', '#1A0F2E', '#0F0F0F']} style={styles.gradient}>
         {/* Header */}
         <View style={styles.header}>
@@ -102,6 +103,42 @@ export default function AdminUsersScreen() {
                       <Text style={styles.userTierText}>{cur.emoji} {cur.name}</Text>
                     </View>
                   </View>
+
+                  {/* User Analytics */}
+                  <View style={styles.analyticsRow}>
+                    <View style={styles.analyticItem}>
+                      <Text style={styles.analyticIcon}>📅</Text>
+                      <View>
+                        <Text style={styles.analyticValue}>{u.bookings.total}</Text>
+                        <Text style={styles.analyticLabel}>Bookings</Text>
+                      </View>
+                    </View>
+                    <View style={styles.analyticItem}>
+                      <Text style={styles.analyticIcon}>⏭️</Text>
+                      <View>
+                        <Text style={styles.analyticValue}>{u.bookings.upcoming}</Text>
+                        <Text style={styles.analyticLabel}>Upcoming</Text>
+                      </View>
+                    </View>
+                    <View style={styles.analyticItem}>
+                      <Text style={styles.analyticIcon}>🎵</Text>
+                      <View>
+                        <Text style={styles.analyticValue}>{u.stats.postsCreated}</Text>
+                        <Text style={styles.analyticLabel}>Posts</Text>
+                      </View>
+                    </View>
+                    <View style={styles.analyticItem}>
+                      <Text style={styles.analyticIcon}>💰</Text>
+                      <View>
+                        <Text style={styles.analyticValue}>${u.stats.totalSpent}</Text>
+                        <Text style={styles.analyticLabel}>Spent</Text>
+                      </View>
+                    </View>
+                  </View>
+
+                  {/* Last Active */}
+                  <Text style={styles.lastActive}>Last active: {u.lastActive}</Text>
+
                   <View style={styles.userProgressRow}>
                     <Text style={styles.userProgressLabel}>{next ? `Progress to ${next.name}` : 'Top tier'}</Text>
                     <Text style={styles.userProgressPct}>{progress}%</Text>
@@ -130,6 +167,39 @@ export default function AdminUsersScreen() {
                   <View>
                     <Text style={styles.detailUserName}>{selectedUser.name} (@{selectedUser.username})</Text>
                     <Text style={styles.detailTier}>{cur.emoji} {cur.name}</Text>
+
+                    {/* Detailed Analytics in Modal */}
+                    <View style={styles.modalAnalytics}>
+                      <View style={styles.modalStatRow}>
+                        <Text style={styles.modalStatLabel}>📅 Total Bookings:</Text>
+                        <Text style={styles.modalStatValue}>{selectedUser.bookings.total}</Text>
+                      </View>
+                      <View style={styles.modalStatRow}>
+                        <Text style={styles.modalStatLabel}>⏭️ Upcoming Sessions:</Text>
+                        <Text style={styles.modalStatValue}>{selectedUser.bookings.upcoming}</Text>
+                      </View>
+                      <View style={styles.modalStatRow}>
+                        <Text style={styles.modalStatLabel}>✅ Completed Sessions:</Text>
+                        <Text style={styles.modalStatValue}>{selectedUser.bookings.completed}</Text>
+                      </View>
+                      <View style={styles.modalStatRow}>
+                        <Text style={styles.modalStatLabel}>🎵 Posts Created:</Text>
+                        <Text style={styles.modalStatValue}>{selectedUser.stats.postsCreated}</Text>
+                      </View>
+                      <View style={styles.modalStatRow}>
+                        <Text style={styles.modalStatLabel}>💰 Total Spent:</Text>
+                        <Text style={styles.modalStatValue}>${selectedUser.stats.totalSpent}</Text>
+                      </View>
+                      <View style={styles.modalStatRow}>
+                        <Text style={styles.modalStatLabel}>⏱️ Last Active:</Text>
+                        <Text style={styles.modalStatValue}>{selectedUser.lastActive}</Text>
+                      </View>
+                      <View style={styles.modalStatRow}>
+                        <Text style={styles.modalStatLabel}>📆 Days Active:</Text>
+                        <Text style={styles.modalStatValue}>{selectedUser.stats.daysActive} days</Text>
+                      </View>
+                    </View>
+
                     {next && (
                       <View style={{ marginTop: 12 }}>
                         <Text style={styles.detailLabel}>Progress to {next.name}</Text>
@@ -143,7 +213,7 @@ export default function AdminUsersScreen() {
           </View>
         </Modal>
       </LinearGradient>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -194,6 +264,39 @@ const styles = StyleSheet.create({
   userProgressPct: { color: '#F59E0B', fontSize: 12, fontWeight: '700' },
   userProgressBar: { height: 6, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 4, overflow: 'hidden', marginTop: 6 },
   userProgressFill: { height: '100%', backgroundColor: '#F59E0B' },
+  analyticsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginVertical: 12,
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.15)'
+  },
+  analyticItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6
+  },
+  analyticIcon: {
+    fontSize: 16
+  },
+  analyticValue: {
+    color: '#FFF',
+    fontWeight: '800',
+    fontSize: 13
+  },
+  analyticLabel: {
+    color: '#888',
+    fontSize: 9,
+    textTransform: 'uppercase'
+  },
+  lastActive: {
+    color: '#666',
+    fontSize: 11,
+    fontStyle: 'italic',
+    marginBottom: 8
+  },
   emptyState: { alignItems: 'center', paddingVertical: 20 },
   emptyEmoji: { fontSize: 36, marginBottom: 8 },
   emptyText: { color: '#888' },
@@ -203,5 +306,26 @@ const styles = StyleSheet.create({
   modalTitle: { color: '#FFF', fontSize: 16, fontWeight: '800' },
   modalClose: { color: '#888', fontSize: 14 },
   detailUserName: { color: '#FFF', fontWeight: '700', marginBottom: 4 },
-  detailTier: { color: '#F59E0B', fontWeight: '700' },
+  detailTier: { color: '#F59E0B', fontWeight: '700', marginBottom: 16 },
+  modalAnalytics: {
+    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12
+  },
+  modalStatRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 6
+  },
+  modalStatLabel: {
+    color: '#AAA',
+    fontSize: 13
+  },
+  modalStatValue: {
+    color: '#FFF',
+    fontWeight: '700',
+    fontSize: 13
+  },
 });
