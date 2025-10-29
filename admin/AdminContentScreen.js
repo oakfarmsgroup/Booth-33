@@ -164,6 +164,7 @@ export default function AdminContentScreen() {
           showsHorizontalScrollIndicator={false}
           style={styles.filterScroll}
           contentContainerStyle={styles.filterContainer}
+          contentInsetAdjustmentBehavior="never"
         >
           <TouchableOpacity 
             style={[styles.filterTab, filter === 'needs_review' && styles.filterTabActive]}
@@ -206,6 +207,8 @@ export default function AdminContentScreen() {
         <ScrollView 
           style={styles.scrollView}
           showsVerticalScrollIndicator={false}
+          contentInsetAdjustmentBehavior="never"
+          contentContainerStyle={{ paddingBottom: 24 }}
         >
           {filteredPosts.length === 0 ? (
             <View style={styles.emptyState}>
@@ -374,7 +377,7 @@ const styles = StyleSheet.create({
     color: '#EF4444',
   },
   filterScroll: {
-    marginBottom: 8,
+    marginBottom: 0,
     paddingVertical: 0,
   },
   filterContainer: {

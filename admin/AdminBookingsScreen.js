@@ -144,6 +144,7 @@ export default function AdminBookingsScreen() {
           showsHorizontalScrollIndicator={false}
           style={styles.filterScroll}
           contentContainerStyle={styles.filterContainer}
+          contentInsetAdjustmentBehavior="never"
         >
           <TouchableOpacity 
             style={[styles.filterTab, filter === 'pending' && styles.filterTabActive]}
@@ -186,6 +187,8 @@ export default function AdminBookingsScreen() {
         <ScrollView 
           style={styles.scrollView}
           showsVerticalScrollIndicator={false}
+          contentInsetAdjustmentBehavior="never"
+          contentContainerStyle={{ paddingBottom: 24 }}
         >
           {filteredBookings.length === 0 ? (
             <View style={styles.emptyState}>
@@ -319,7 +322,7 @@ const styles = StyleSheet.create({
     color: '#F59E0B',
   },
   filterScroll: {
-    marginBottom: 8,
+    marginBottom: 0,
     paddingVertical: 0,
   },
   filterContainer: {
