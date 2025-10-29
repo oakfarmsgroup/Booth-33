@@ -341,8 +341,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 40,
-    paddingBottom: 16,
+    paddingTop: 8,
+    paddingBottom: 8,
   },
   headerTitle: {
     fontSize: 24,
@@ -374,8 +374,8 @@ const styles = StyleSheet.create({
     color: '#EF4444',
   },
   filterScroll: {
-    marginBottom: 12,
-    paddingVertical: 2,
+    marginBottom: 8,
+    paddingVertical: 0,
   },
   filterContainer: {
     paddingHorizontal: 20,
