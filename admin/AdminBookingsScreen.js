@@ -125,7 +125,7 @@ export default function AdminBookingsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['left','right']}>
       <LinearGradient
         colors={['#0F0F0F', '#1A0F2E', '#0F0F0F']}
         style={styles.gradient}
@@ -297,7 +297,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 8,
+    paddingTop: 0,
     paddingBottom: 8,
   },
   headerTitle: {
