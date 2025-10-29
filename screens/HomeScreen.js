@@ -10,6 +10,8 @@ import { useSearch } from '../contexts/SearchContext';
 import { useProfile } from '../contexts/ProfileContext';
 import { useReviews } from '../contexts/ReviewsContext';
 import { useRewards } from '../contexts/RewardsContext';
+import { useTier } from '../contexts/TierContext';
+import { darkenColor } from '../data/tierSystem';
 
 // Purple Glowing Loading Spinner Component
 function LoadingSpinner() {
@@ -438,6 +440,7 @@ export default function HomeScreen() {
   const { getProfile, toggleFollow } = useProfile();
   const { getReviewsForUser, getAverageRating, getRatingBreakdown, getReviewStats, markHelpful } = useReviews();
   const { userRewards, rewardTiers, milestones, referrals, rewardsHistory, getReferralLink, getCurrentTier, getNextTier, getPointsToNextTier, claimMilestone, getUnclaimedMilestones } = useRewards();
+  const { currentTier } = useTier();
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [postCaption, setPostCaption] = useState('');
@@ -686,6 +689,21 @@ export default function HomeScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>BOOTH 33</Text>
+          <TouchableOpacity
+            onPress={() => setShowRewardsModal(true)}
+            activeOpacity={0.8}
+            style={[styles.tierBadge, { borderColor: (currentTier && currentTier.color) ? currentTier.color : '#8B5CF6' }]}
+          >
+            <LinearGradient
+              colors={[(currentTier && currentTier.color) ? currentTier.color : '#8B5CF6', darkenColor((currentTier && currentTier.color) ? currentTier.color : '#8B5CF6')]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.tierBadgeGradient}
+            >
+              <Text style={styles.tierBadgeEmoji}>{(currentTier && currentTier.emoji) ? currentTier.emoji : '⭐'}</Text>
+              <Text style={styles.tierBadgeText}>{(currentTier && currentTier.name) ? currentTier.name : 'Member'}</Text>
+            </LinearGradient>
+          </TouchableOpacity>
           <View style={styles.headerIcons}>
             <TouchableOpacity
               style={styles.iconButton}
@@ -2433,6 +2451,29 @@ const styles = StyleSheet.create({
   },
   headerIcons: {
     flexDirection: 'row',
+  },
+  tierBadge: {
+    marginLeft: 'auto',
+    marginRight: 10,
+    borderWidth: 1,
+    borderRadius: 999,
+    overflow: 'hidden',
+  },
+  tierBadgeGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  tierBadgeEmoji: {
+    fontSize: 14,
+    marginRight: 6,
+  },
+  tierBadgeText: {
+    color: '#0F0F0F',
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
   iconButton: {
     marginLeft: 15,
