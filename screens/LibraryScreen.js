@@ -653,13 +653,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   filterChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
     backgroundColor: 'rgba(139, 92, 246, 0.1)',
     borderWidth: 1,
     borderColor: 'rgba(139, 92, 246, 0.3)',
-    marginRight: 6,
+    marginRight: 8,
   },
   filterChipActive: {
     backgroundColor: '#8B5CF6',
