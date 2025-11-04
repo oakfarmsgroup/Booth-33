@@ -2,11 +2,14 @@ import React, { useState } from 'react';
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Modal, TextInput, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useNavigation } from '@react-navigation/native';
 import { useCredits } from '../contexts/CreditsContext';
 import { usePayment } from '../contexts/PaymentContext';
 import { useRewards } from '../contexts/RewardsContext';
+import { TIERS } from '../data/tierSystem';
 
 export default function AdminOverviewScreen() {
+  const navigation = useNavigation();
   const { grantCredits } = useCredits();
   const { getRevenueStats, getPaymentHistory, processRefund } = usePayment();
   const { userRewards, milestones, referrals, rewardTiers } = useRewards();
@@ -19,6 +22,36 @@ export default function AdminOverviewScreen() {
   const [showRefundModal, setShowRefundModal] = useState(false);
   const [refundAmount, setRefundAmount] = useState('');
   const [showRewardsKPIModal, setShowRewardsKPIModal] = useState(false);
+  const [showCalendarModal, setShowCalendarModal] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [studioSettings, setStudioSettings] = useState({
+    musicSessionPrice: 150,
+    podcastSessionPrice: 150,
+    sessionDuration: 2,
+    cancellationPolicy: '24 hours',
+    depositRequired: true,
+    depositAmount: 50,
+    maxAdvanceBooking: 60, // days
+    notifications: {
+      bookingRequests: true,
+      cancellations: true,
+      reviews: true,
+    },
+  });
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [blockedSlots, setBlockedSlots] = useState([
+    { id: 1, date: 'Oct 30, 2025', time: '10:00 AM', reason: 'Equipment maintenance' },
+    { id: 2, date: 'Nov 1, 2025', time: '2:00 PM', reason: 'Staff meeting' },
+  ]);
+  const [studioHours, setStudioHours] = useState({
+    monday: { open: '9:00 AM', close: '10:00 PM', closed: false },
+    tuesday: { open: '9:00 AM', close: '10:00 PM', closed: false },
+    wednesday: { open: '9:00 AM', close: '10:00 PM', closed: false },
+    thursday: { open: '9:00 AM', close: '10:00 PM', closed: false },
+    friday: { open: '9:00 AM', close: '10:00 PM', closed: false },
+    saturday: { open: '10:00 AM', close: '8:00 PM', closed: false },
+    sunday: { open: '12:00 PM', close: '6:00 PM', closed: false },
+  });
 
   // Get real payment stats
   const revenueStats = getRevenueStats();
@@ -30,10 +63,10 @@ export default function AdminOverviewScreen() {
     totalCreditsDistributed: userRewards.lifetimeCreditsEarned,
     avgMilestonesPerUser: milestones.filter(m => m.completed).length,
     tierDistribution: {
-      bronze: 45,   // Percentage of users in each tier (mock data)
-      silver: 30,
-      gold: 20,
-      platinum: 5,
+      silver: 45,   // Percentage of users in each tier (mock data)
+      gold: 30,
+      platinum: 20,
+      diamond: 5,
     },
     topReferrers: [
       { name: 'Current User', referrals: userRewards.successfulReferrals, credits: userRewards.successfulReferrals * 20 },
@@ -343,7 +376,7 @@ export default function AdminOverviewScreen() {
               </View>
 
               <View style={styles.rewardKPICard}>
-                <Text style={styles.kpiValue}>{Object.keys(rewardTiers).length}</Text>
+                <Text style={styles.kpiValue}>{Object.keys(TIERS).length}</Text>
                 <Text style={styles.kpiLabel}>Reward Tiers</Text>
               </View>
             </View>
@@ -352,22 +385,26 @@ export default function AdminOverviewScreen() {
             <View style={styles.tierDistributionCard}>
               <Text style={styles.tierDistributionTitle}>User Tier Distribution</Text>
               <View style={styles.tierBars}>
-                {Object.entries(rewardsKPIs.tierDistribution).map(([tier, percentage]) => (
-                  <View key={tier} style={styles.tierBarRow}>
-                    <Text style={styles.tierBarLabel}>
-                      {rewardTiers[tier].icon} {rewardTiers[tier].name}
-                    </Text>
-                    <View style={styles.tierBarContainer}>
-                      <View
-                        style={[
-                          styles.tierBarFill,
-                          { width: `${percentage}%`, backgroundColor: rewardTiers[tier].color },
-                        ]}
-                      />
+                {Object.entries(rewardsKPIs.tierDistribution).map(([tier, percentage]) => {
+                  const tierKey = tier.toUpperCase();
+                  const tierData = TIERS[tierKey];
+                  return (
+                    <View key={tier} style={styles.tierBarRow}>
+                      <Text style={styles.tierBarLabel}>
+                        {tierData.emoji} {tierData.name}
+                      </Text>
+                      <View style={styles.tierBarContainer}>
+                        <View
+                          style={[
+                            styles.tierBarFill,
+                            { width: `${percentage}%`, backgroundColor: tierData.color },
+                          ]}
+                        />
+                      </View>
+                      <Text style={styles.tierBarPercent}>{percentage}%</Text>
                     </View>
-                    <Text style={styles.tierBarPercent}>{percentage}%</Text>
-                  </View>
-                ))}
+                  );
+                })}
               </View>
             </View>
           </View>
@@ -392,8 +429,11 @@ export default function AdminOverviewScreen() {
           {/* Quick Actions */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Quick Actions</Text>
-            
-            <TouchableOpacity style={styles.actionCard}>
+
+            <TouchableOpacity
+              style={styles.actionCard}
+              onPress={() => navigation.navigate('Bookings')}
+            >
               <Text style={styles.actionIcon}>✅</Text>
               <View style={styles.actionInfo}>
                 <Text style={styles.actionTitle}>Review Pending Bookings</Text>
@@ -402,7 +442,10 @@ export default function AdminOverviewScreen() {
               <Text style={styles.actionArrow}>›</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.actionCard}>
+            <TouchableOpacity
+              style={styles.actionCard}
+              onPress={() => setShowCalendarModal(true)}
+            >
               <Text style={styles.actionIcon}>📅</Text>
               <View style={styles.actionInfo}>
                 <Text style={styles.actionTitle}>Manage Calendar</Text>
@@ -411,7 +454,10 @@ export default function AdminOverviewScreen() {
               <Text style={styles.actionArrow}>›</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.actionCard}>
+            <TouchableOpacity
+              style={styles.actionCard}
+              onPress={() => setShowSettingsModal(true)}
+            >
               <Text style={styles.actionIcon}>⚙️</Text>
               <View style={styles.actionInfo}>
                 <Text style={styles.actionTitle}>Studio Settings</Text>
@@ -708,20 +754,20 @@ export default function AdminOverviewScreen() {
                 {/* Tier Breakdown */}
                 <View style={styles.modalSection}>
                   <Text style={styles.modalSectionTitle}>User Tier Distribution</Text>
-                  {Object.entries(rewardTiers).map(([tierKey, tier]) => {
-                    const percentage = rewardsKPIs.tierDistribution[tierKey];
+                  {Object.entries(TIERS).map(([tierKey, tier]) => {
+                    const percentage = rewardsKPIs.tierDistribution[tierKey.toLowerCase()] || 0;
                     const userCount = Math.round((percentage / 100) * rewardsKPIs.totalUsers);
 
                     return (
                       <View key={tierKey} style={styles.tierDetailCard}>
                         <View style={styles.tierDetailHeader}>
-                          <Text style={styles.tierDetailIcon}>{tier.icon}</Text>
+                          <Text style={styles.tierDetailIcon}>{tier.emoji}</Text>
                           <View style={styles.tierDetailInfo}>
                             <Text style={styles.tierDetailName}>{tier.name}</Text>
                             <Text style={styles.tierDetailStats}>{userCount} users • {percentage}%</Text>
                           </View>
                           <Text style={[styles.tierDetailPoints, { color: tier.color }]}>
-                            {tier.pointsRequired} pts
+                            {tier.requirements.sessionsBooked} sessions
                           </Text>
                         </View>
                         <View style={styles.tierBenefitsList}>
@@ -780,6 +826,464 @@ export default function AdminOverviewScreen() {
                     </View>
                   ))}
                 </View>
+
+                <View style={{ height: 40 }} />
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Calendar Management Modal */}
+        <Modal
+          visible={showCalendarModal}
+          animationType="slide"
+          transparent={true}
+          onRequestClose={() => setShowCalendarModal(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <LinearGradient
+                colors={['#8B5CF6', '#6D28D9']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.modalHeader}
+              >
+                <Text style={styles.modalTitle}>📅 Calendar Management</Text>
+                <TouchableOpacity onPress={() => setShowCalendarModal(false)}>
+                  <Text style={styles.modalClose}>✕</Text>
+                </TouchableOpacity>
+              </LinearGradient>
+
+              <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
+                {/* Blocked Time Slots Section */}
+                <View style={styles.calendarSection}>
+                  <Text style={styles.calendarSectionTitle}>🚫 Blocked Time Slots</Text>
+                  <Text style={styles.calendarSectionDesc}>
+                    Manage blocked time slots for maintenance or special events
+                  </Text>
+
+                  {blockedSlots.length > 0 ? (
+                    <View style={styles.blockedSlotsList}>
+                      {blockedSlots.map((slot) => (
+                        <View key={slot.id} style={styles.blockedSlotCard}>
+                          <View style={styles.blockedSlotInfo}>
+                            <Text style={styles.blockedSlotDate}>{slot.date}</Text>
+                            <Text style={styles.blockedSlotTime}>{slot.time}</Text>
+                            <Text style={styles.blockedSlotReason}>{slot.reason}</Text>
+                          </View>
+                          <TouchableOpacity
+                            style={styles.unblockButton}
+                            onPress={() => {
+                              Alert.alert(
+                                'Unblock Time Slot',
+                                `Remove block for ${slot.date} at ${slot.time}?`,
+                                [
+                                  { text: 'Cancel', style: 'cancel' },
+                                  {
+                                    text: 'Unblock',
+                                    onPress: () => {
+                                      setBlockedSlots(blockedSlots.filter(s => s.id !== slot.id));
+                                      Alert.alert('Success', 'Time slot unblocked');
+                                    },
+                                  },
+                                ]
+                              );
+                            }}
+                          >
+                            <Text style={styles.unblockButtonText}>Unblock</Text>
+                          </TouchableOpacity>
+                        </View>
+                      ))}
+                    </View>
+                  ) : (
+                    <View style={styles.emptyBlockedSlots}>
+                      <Text style={styles.emptyBlockedSlotsText}>No blocked time slots</Text>
+                    </View>
+                  )}
+
+                  <TouchableOpacity
+                    style={styles.addBlockButton}
+                    onPress={() => {
+                      Alert.alert(
+                        'Add Blocked Time Slot',
+                        'Full date/time picker will be available in the complete version',
+                        [{ text: 'OK' }]
+                      );
+                    }}
+                  >
+                    <LinearGradient
+                      colors={['#EF4444', '#DC2626']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={styles.addBlockButtonGradient}
+                    >
+                      <Text style={styles.addBlockButtonText}>+ Block Time Slot</Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Studio Hours Section */}
+                <View style={styles.calendarSection}>
+                  <Text style={styles.calendarSectionTitle}>🕐 Studio Hours</Text>
+                  <Text style={styles.calendarSectionDesc}>
+                    Set your regular operating hours for each day of the week
+                  </Text>
+
+                  <View style={styles.studioHoursList}>
+                    {Object.keys(studioHours).map((day) => {
+                      const hours = studioHours[day];
+                      return (
+                        <View key={day} style={styles.studioHoursCard}>
+                          <View style={styles.studioHoursDay}>
+                            <Text style={styles.studioHoursDayText}>
+                              {day.charAt(0).toUpperCase() + day.slice(1)}
+                            </Text>
+                          </View>
+                          {hours.closed ? (
+                            <View style={styles.studioHoursClosed}>
+                              <Text style={styles.studioHoursClosedText}>Closed</Text>
+                            </View>
+                          ) : (
+                            <View style={styles.studioHoursTime}>
+                              <Text style={styles.studioHoursTimeText}>
+                                {hours.open} - {hours.close}
+                              </Text>
+                            </View>
+                          )}
+                          <TouchableOpacity
+                            style={styles.editHoursButton}
+                            onPress={() => {
+                              Alert.alert(
+                                `Edit ${day.charAt(0).toUpperCase() + day.slice(1)} Hours`,
+                                'Time picker will be available in the complete version',
+                                [{ text: 'OK' }]
+                              );
+                            }}
+                          >
+                            <Text style={styles.editHoursButtonText}>Edit</Text>
+                          </TouchableOpacity>
+                        </View>
+                      );
+                    })}
+                  </View>
+                </View>
+
+                {/* Quick Actions */}
+                <View style={styles.calendarSection}>
+                  <Text style={styles.calendarSectionTitle}>⚡ Quick Actions</Text>
+
+                  <TouchableOpacity
+                    style={styles.quickCalendarAction}
+                    onPress={() => {
+                      Alert.alert(
+                        'Block Entire Day',
+                        'Select a date to block all time slots',
+                        [{ text: 'OK' }]
+                      );
+                    }}
+                  >
+                    <Text style={styles.quickCalendarActionIcon}>🚫</Text>
+                    <Text style={styles.quickCalendarActionText}>Block Entire Day</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.quickCalendarAction}
+                    onPress={() => {
+                      Alert.alert(
+                        'Set Holiday Hours',
+                        'Configure special hours for holidays',
+                        [{ text: 'OK' }]
+                      );
+                    }}
+                  >
+                    <Text style={styles.quickCalendarActionIcon}>🎉</Text>
+                    <Text style={styles.quickCalendarActionText}>Set Holiday Hours</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={{ height: 40 }} />
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Studio Settings Modal */}
+        <Modal
+          visible={showSettingsModal}
+          animationType="slide"
+          transparent={true}
+          onRequestClose={() => setShowSettingsModal(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <LinearGradient
+                colors={['#F59E0B', '#D97706']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.modalHeader}
+              >
+                <Text style={styles.modalTitle}>⚙️ Studio Settings</Text>
+                <TouchableOpacity onPress={() => setShowSettingsModal(false)}>
+                  <Text style={styles.modalClose}>✕</Text>
+                </TouchableOpacity>
+              </LinearGradient>
+
+              <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
+                {/* Pricing Section */}
+                <View style={styles.settingsSection}>
+                  <Text style={styles.settingsSectionTitle}>💰 Pricing</Text>
+
+                  <View style={styles.settingItem}>
+                    <View style={styles.settingItemHeader}>
+                      <Text style={styles.settingItemLabel}>🎵 Music Recording Session</Text>
+                      <Text style={styles.settingItemValue}>${studioSettings.musicSessionPrice}</Text>
+                    </View>
+                    <Text style={styles.settingItemDesc}>Per {studioSettings.sessionDuration} hour session</Text>
+                    <TouchableOpacity
+                      style={styles.editSettingButton}
+                      onPress={() => {
+                        Alert.alert(
+                          'Edit Pricing',
+                          'Price editor will be available in the complete version',
+                          [{ text: 'OK' }]
+                        );
+                      }}
+                    >
+                      <Text style={styles.editSettingButtonText}>Edit Price</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  <View style={styles.settingItem}>
+                    <View style={styles.settingItemHeader}>
+                      <Text style={styles.settingItemLabel}>🎙️ Podcast Recording Session</Text>
+                      <Text style={styles.settingItemValue}>${studioSettings.podcastSessionPrice}</Text>
+                    </View>
+                    <Text style={styles.settingItemDesc}>Per {studioSettings.sessionDuration} hour session</Text>
+                    <TouchableOpacity
+                      style={styles.editSettingButton}
+                      onPress={() => {
+                        Alert.alert(
+                          'Edit Pricing',
+                          'Price editor will be available in the complete version',
+                          [{ text: 'OK' }]
+                        );
+                      }}
+                    >
+                      <Text style={styles.editSettingButtonText}>Edit Price</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                {/* Session Configuration */}
+                <View style={styles.settingsSection}>
+                  <Text style={styles.settingsSectionTitle}>⏱️ Session Configuration</Text>
+
+                  <View style={styles.settingItem}>
+                    <View style={styles.settingItemHeader}>
+                      <Text style={styles.settingItemLabel}>Default Session Duration</Text>
+                      <Text style={styles.settingItemValue}>{studioSettings.sessionDuration} hours</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.editSettingButton}
+                      onPress={() => {
+                        Alert.alert(
+                          'Edit Session Duration',
+                          'Duration editor will be available in the complete version',
+                          [{ text: 'OK' }]
+                        );
+                      }}
+                    >
+                      <Text style={styles.editSettingButtonText}>Edit Duration</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  <View style={styles.settingItem}>
+                    <View style={styles.settingItemHeader}>
+                      <Text style={styles.settingItemLabel}>Max Advance Booking</Text>
+                      <Text style={styles.settingItemValue}>{studioSettings.maxAdvanceBooking} days</Text>
+                    </View>
+                    <Text style={styles.settingItemDesc}>How far in advance users can book</Text>
+                    <TouchableOpacity
+                      style={styles.editSettingButton}
+                      onPress={() => {
+                        Alert.alert(
+                          'Edit Advance Booking',
+                          'Editor will be available in the complete version',
+                          [{ text: 'OK' }]
+                        );
+                      }}
+                    >
+                      <Text style={styles.editSettingButtonText}>Edit</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                {/* Policies */}
+                <View style={styles.settingsSection}>
+                  <Text style={styles.settingsSectionTitle}>📋 Policies</Text>
+
+                  <View style={styles.settingItem}>
+                    <View style={styles.settingItemHeader}>
+                      <Text style={styles.settingItemLabel}>Cancellation Policy</Text>
+                      <Text style={styles.settingItemValue}>{studioSettings.cancellationPolicy}</Text>
+                    </View>
+                    <Text style={styles.settingItemDesc}>Minimum notice required for cancellation</Text>
+                    <TouchableOpacity
+                      style={styles.editSettingButton}
+                      onPress={() => {
+                        Alert.alert(
+                          'Edit Cancellation Policy',
+                          'Choose cancellation window: 12 hours, 24 hours, 48 hours, or 72 hours',
+                          [{ text: 'OK' }]
+                        );
+                      }}
+                    >
+                      <Text style={styles.editSettingButtonText}>Edit Policy</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  <View style={styles.settingItem}>
+                    <View style={styles.settingItemHeader}>
+                      <Text style={styles.settingItemLabel}>Deposit Required</Text>
+                      <Text style={[
+                        styles.settingItemValue,
+                        { color: studioSettings.depositRequired ? '#10B981' : '#666' }
+                      ]}>
+                        {studioSettings.depositRequired ? 'Yes' : 'No'}
+                      </Text>
+                    </View>
+                    {studioSettings.depositRequired && (
+                      <Text style={styles.settingItemDesc}>
+                        ${studioSettings.depositAmount} deposit required at booking
+                      </Text>
+                    )}
+                    <TouchableOpacity
+                      style={styles.editSettingButton}
+                      onPress={() => {
+                        setStudioSettings({
+                          ...studioSettings,
+                          depositRequired: !studioSettings.depositRequired,
+                        });
+                      }}
+                    >
+                      <Text style={styles.editSettingButtonText}>
+                        {studioSettings.depositRequired ? 'Disable' : 'Enable'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                {/* Notifications */}
+                <View style={styles.settingsSection}>
+                  <Text style={styles.settingsSectionTitle}>🔔 Notifications</Text>
+
+                  <View style={styles.settingToggleItem}>
+                    <View style={styles.settingToggleInfo}>
+                      <Text style={styles.settingToggleLabel}>Booking Requests</Text>
+                      <Text style={styles.settingToggleDesc}>Get notified of new booking requests</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={[
+                        styles.settingToggle,
+                        studioSettings.notifications.bookingRequests && styles.settingToggleActive
+                      ]}
+                      onPress={() => {
+                        setStudioSettings({
+                          ...studioSettings,
+                          notifications: {
+                            ...studioSettings.notifications,
+                            bookingRequests: !studioSettings.notifications.bookingRequests,
+                          },
+                        });
+                      }}
+                    >
+                      <View style={[
+                        styles.settingToggleCircle,
+                        studioSettings.notifications.bookingRequests && styles.settingToggleCircleActive
+                      ]} />
+                    </TouchableOpacity>
+                  </View>
+
+                  <View style={styles.settingToggleItem}>
+                    <View style={styles.settingToggleInfo}>
+                      <Text style={styles.settingToggleLabel}>Cancellations</Text>
+                      <Text style={styles.settingToggleDesc}>Get notified when users cancel</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={[
+                        styles.settingToggle,
+                        studioSettings.notifications.cancellations && styles.settingToggleActive
+                      ]}
+                      onPress={() => {
+                        setStudioSettings({
+                          ...studioSettings,
+                          notifications: {
+                            ...studioSettings.notifications,
+                            cancellations: !studioSettings.notifications.cancellations,
+                          },
+                        });
+                      }}
+                    >
+                      <View style={[
+                        styles.settingToggleCircle,
+                        studioSettings.notifications.cancellations && styles.settingToggleCircleActive
+                      ]} />
+                    </TouchableOpacity>
+                  </View>
+
+                  <View style={styles.settingToggleItem}>
+                    <View style={styles.settingToggleInfo}>
+                      <Text style={styles.settingToggleLabel}>Reviews</Text>
+                      <Text style={styles.settingToggleDesc}>Get notified of new reviews</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={[
+                        styles.settingToggle,
+                        studioSettings.notifications.reviews && styles.settingToggleActive
+                      ]}
+                      onPress={() => {
+                        setStudioSettings({
+                          ...studioSettings,
+                          notifications: {
+                            ...studioSettings.notifications,
+                            reviews: !studioSettings.notifications.reviews,
+                          },
+                        });
+                      }}
+                    >
+                      <View style={[
+                        styles.settingToggleCircle,
+                        studioSettings.notifications.reviews && styles.settingToggleCircleActive
+                      ]} />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                {/* Save Button */}
+                <TouchableOpacity
+                  style={styles.saveSettingsButton}
+                  onPress={() => {
+                    Alert.alert(
+                      'Settings Saved',
+                      'Your studio settings have been updated successfully',
+                      [
+                        {
+                          text: 'OK',
+                          onPress: () => setShowSettingsModal(false),
+                        },
+                      ]
+                    );
+                  }}
+                >
+                  <LinearGradient
+                    colors={['#F59E0B', '#D97706']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.saveSettingsButtonGradient}
+                  >
+                    <Text style={styles.saveSettingsButtonText}>SAVE SETTINGS</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
 
                 <View style={{ height: 40 }} />
               </ScrollView>
@@ -1554,5 +2058,265 @@ const styles = StyleSheet.create({
   milestoneKPIRewardLabel: {
     fontSize: 10,
     color: '#888',
+  },
+  // Calendar Modal Styles
+  calendarSection: {
+    marginBottom: 32,
+  },
+  calendarSectionTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    marginBottom: 8,
+  },
+  calendarSectionDesc: {
+    fontSize: 13,
+    color: '#999',
+    marginBottom: 16,
+    lineHeight: 18,
+  },
+  blockedSlotsList: {
+    marginBottom: 16,
+  },
+  blockedSlotCard: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.3)',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+  },
+  blockedSlotInfo: {
+    flex: 1,
+  },
+  blockedSlotDate: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 4,
+  },
+  blockedSlotTime: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#EF4444',
+    marginBottom: 4,
+  },
+  blockedSlotReason: {
+    fontSize: 12,
+    color: '#999',
+  },
+  unblockButton: {
+    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  unblockButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#EF4444',
+  },
+  emptyBlockedSlots: {
+    paddingVertical: 32,
+    alignItems: 'center',
+  },
+  emptyBlockedSlotsText: {
+    fontSize: 14,
+    color: '#666',
+  },
+  addBlockButton: {
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  addBlockButtonGradient: {
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  addBlockButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  studioHoursList: {
+    gap: 12,
+  },
+  studioHoursCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.3)',
+    borderRadius: 12,
+    padding: 16,
+  },
+  studioHoursDay: {
+    width: 100,
+  },
+  studioHoursDayText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  studioHoursTime: {
+    flex: 1,
+  },
+  studioHoursTimeText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#8B5CF6',
+  },
+  studioHoursClosed: {
+    flex: 1,
+  },
+  studioHoursClosedText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666',
+  },
+  editHoursButton: {
+    backgroundColor: 'rgba(139, 92, 246, 0.2)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  editHoursButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#8B5CF6',
+  },
+  quickCalendarAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.2)',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+  },
+  quickCalendarActionIcon: {
+    fontSize: 24,
+    marginRight: 16,
+  },
+  quickCalendarActionText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  // Studio Settings Modal Styles
+  settingsSection: {
+    marginBottom: 32,
+  },
+  settingsSectionTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    marginBottom: 16,
+  },
+  settingItem: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.2)',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+  },
+  settingItemHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  settingItemLabel: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    flex: 1,
+  },
+  settingItemValue: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#F59E0B',
+  },
+  settingItemDesc: {
+    fontSize: 12,
+    color: '#999',
+    marginBottom: 12,
+  },
+  editSettingButton: {
+    backgroundColor: 'rgba(245, 158, 11, 0.2)',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+  },
+  editSettingButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#F59E0B',
+  },
+  settingToggleItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.2)',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+  },
+  settingToggleInfo: {
+    flex: 1,
+    marginRight: 16,
+  },
+  settingToggleLabel: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 4,
+  },
+  settingToggleDesc: {
+    fontSize: 12,
+    color: '#999',
+  },
+  settingToggle: {
+    width: 50,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    padding: 2,
+    justifyContent: 'center',
+  },
+  settingToggleActive: {
+    backgroundColor: '#F59E0B',
+  },
+  settingToggleCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#666',
+  },
+  settingToggleCircleActive: {
+    backgroundColor: '#FFFFFF',
+    alignSelf: 'flex-end',
+  },
+  saveSettingsButton: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    marginTop: 16,
+  },
+  saveSettingsButtonGradient: {
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  saveSettingsButtonText: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: 1.5,
   },
 });

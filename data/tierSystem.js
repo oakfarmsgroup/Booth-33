@@ -3,6 +3,8 @@ export const TIERS = {
     name: 'Silver',
     emoji: '⭐',
     color: '#C0C0C0',
+    discountPercent: 10,
+    monthlyCredits: 5,
     requirements: {
       sessionsBooked: 1,
       referrals: 0,
@@ -10,12 +12,19 @@ export const TIERS = {
       daysActive: 3,
       totalSpent: 0,
     },
-    benefits: ['5% discount on bookings', 'Priority support'],
+    benefits: [
+      '10% discount on bookings',
+      'Priority support',
+      'Early access to new features',
+      'Monthly bonus: 5 credits'
+    ],
   },
   GOLD: {
     name: 'Gold',
     emoji: '🌟',
     color: '#FFD700',
+    discountPercent: 15,
+    monthlyCredits: 10,
     requirements: {
       sessionsBooked: 5,
       referrals: 2,
@@ -23,12 +32,20 @@ export const TIERS = {
       daysActive: 14,
       totalSpent: 500,
     },
-    benefits: ['10% discount', 'Free 30min session monthly', 'Verified badge'],
+    benefits: [
+      '15% discount on bookings',
+      'Free 30min session monthly',
+      'VIP badge on profile',
+      'Monthly bonus: 10 credits',
+      'Priority booking slots'
+    ],
   },
   PLATINUM: {
     name: 'Platinum',
     emoji: '💫',
     color: '#E5E4E2',
+    discountPercent: 20,
+    monthlyCredits: 20,
     requirements: {
       sessionsBooked: 15,
       referrals: 5,
@@ -37,8 +54,11 @@ export const TIERS = {
       totalSpent: 2000,
     },
     benefits: [
-      '15% discount',
+      '20% discount on bookings',
       '2 free 30min sessions monthly',
+      'Platinum badge on profile',
+      'Monthly bonus: 20 credits',
+      'Direct line to studio manager',
       'Priority studio slots',
       'Featured creator highlights',
     ],
@@ -47,6 +67,8 @@ export const TIERS = {
     name: 'Diamond',
     emoji: '💎',
     color: '#74E0FF',
+    discountPercent: 25,
+    monthlyCredits: 40,
     requirements: {
       sessionsBooked: 40,
       referrals: 12,
@@ -55,10 +77,12 @@ export const TIERS = {
       totalSpent: 6500,
     },
     benefits: [
-      '25% discount',
+      '25% discount on bookings',
       '4 free 30min sessions monthly',
       'VIP concierge support',
+      'Monthly bonus: 40 credits',
       'Top-tier discovery boost',
+      'Guaranteed booking availability',
     ],
   },
 };
@@ -118,5 +142,17 @@ export const darkenColor = (hex, amt = 0.2) => {
   const db = Math.max(0, Math.floor(b * (1 - amt)));
   const toHex = (n) => n.toString(16).padStart(2, '0');
   return `#${toHex(dr)}${toHex(dg)}${toHex(db)}`;
+};
+
+export const getTierDiscount = (tierKey) => {
+  const key = typeof tierKey === 'string' ? tierKey.toUpperCase() : (tierKey?.key?.toUpperCase() || 'SILVER');
+  const tier = TIERS[key];
+  return tier ? tier.discountPercent : 0;
+};
+
+export const getTierMonthlyCredits = (tierKey) => {
+  const key = typeof tierKey === 'string' ? tierKey.toUpperCase() : (tierKey?.key?.toUpperCase() || 'SILVER');
+  const tier = TIERS[key];
+  return tier ? tier.monthlyCredits : 0;
 };
 

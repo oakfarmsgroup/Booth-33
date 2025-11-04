@@ -4,11 +4,13 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { NavigationContainer } from '@react-navigation/native';
 import AdminOverviewScreen from './admin/AdminOverviewScreen';
 import AdminBookingsScreen from './admin/AdminBookingsScreen';
+import AdminSessionsScreen from './admin/AdminSessionsScreen';
 import AdminContentScreen from './admin/AdminContentScreen';
 import AdminEventsScreen from './admin/AdminEventsScreen';
 import AdminSettingsScreen from './admin/AdminSettingsScreen';
 import AdminUsersScreen from './admin/AdminUsersScreen';
 import { BookingsProvider } from './contexts/BookingsContext';
+import { SessionsProvider } from './contexts/SessionsContext';
 import { CreditsProvider } from './contexts/CreditsContext';
 import { PaymentProvider } from './contexts/PaymentContext';
 import { NotificationsProvider } from './contexts/NotificationsContext';
@@ -23,15 +25,16 @@ const Tab = createBottomTabNavigator();
 export default function AdminMainApp({ onLogout }) {
   return (
     <BookingsProvider>
-      <CreditsProvider>
-        <PaymentProvider>
-          <NotificationsProvider>
-            <MessagingProvider>
-              <SearchProvider>
-                <ProfileProvider>
-                  <ReviewsProvider>
-                    <RewardsProvider>
-                      <NavigationContainer independent={true}>
+      <SessionsProvider>
+        <CreditsProvider>
+          <PaymentProvider>
+            <NotificationsProvider>
+              <MessagingProvider>
+                <SearchProvider>
+                  <ProfileProvider>
+                    <ReviewsProvider>
+                      <RewardsProvider>
+                        <NavigationContainer independent={true}>
                         <Tab.Navigator
                           screenOptions={{
                             headerShown: false,
@@ -63,6 +66,11 @@ export default function AdminMainApp({ onLogout }) {
                             options={{ tabBarIcon: () => <AdminTabIcon emoji={'📅'} /> }}
                           />
                           <Tab.Screen
+                            name="Sessions"
+                            component={AdminSessionsScreen}
+                            options={{ tabBarIcon: () => <AdminTabIcon emoji={'📂'} /> }}
+                          />
+                          <Tab.Screen
                             name="Content"
                             component={AdminContentScreen}
                             options={{ tabBarIcon: () => <AdminTabIcon emoji={'📝'} /> }}
@@ -82,14 +90,15 @@ export default function AdminMainApp({ onLogout }) {
                           </Tab.Screen>
                         </Tab.Navigator>
                       </NavigationContainer>
-                    </RewardsProvider>
-                  </ReviewsProvider>
-                </ProfileProvider>
-              </SearchProvider>
-            </MessagingProvider>
-          </NotificationsProvider>
-        </PaymentProvider>
-      </CreditsProvider>
+                      </RewardsProvider>
+                    </ReviewsProvider>
+                  </ProfileProvider>
+                </SearchProvider>
+              </MessagingProvider>
+            </NotificationsProvider>
+          </PaymentProvider>
+        </CreditsProvider>
+      </SessionsProvider>
     </BookingsProvider>
   );
 }

@@ -25,6 +25,9 @@ export const CreditsProvider = ({ children }) => {
     },
   ]);
 
+  // Track last monthly bonus date
+  const [lastMonthlyBonus, setLastMonthlyBonus] = useState(null);
+
   // Grant credits to user (admin function)
   const grantCredits = (amount, description, grantedBy = 'Studio Admin') => {
     const transaction = {
@@ -104,9 +107,60 @@ export const CreditsProvider = ({ children }) => {
       .reduce((sum, t) => sum + t.amount, 0);
   };
 
+  // Check if user can use credits (any amount)
+  const canUseCredits = () => {
+    return credits > 0;
+  };
+
+  // Get credits in hours format (60 credits = 1 hour)
+  const getCreditsInHours = () => {
+    const hours = Math.floor(credits / 60);
+    return hours;
+  };
+
+  // Check if monthly bonus is available (30 days since last bonus)
+  const isMonthlyBonusAvailable = () => {
+    if (!lastMonthlyBonus) return true; // First time bonus
+
+    const daysSinceLastBonus = Math.floor((new Date() - new Date(lastMonthlyBonus)) / (1000 * 60 * 60 * 24));
+    return daysSinceLastBonus >= 30;
+  };
+
+  // Grant monthly tier bonus
+  const grantMonthlyBonus = (tierName, monthlyCredits) => {
+    if (!isMonthlyBonusAvailable()) {
+      return { success: false, message: 'Monthly bonus not yet available' };
+    }
+
+    const transaction = {
+      id: Date.now(),
+      type: 'granted',
+      amount: monthlyCredits,
+      description: `Monthly ${tierName} Member Bonus`,
+      date: new Date(),
+      grantedBy: 'Tier System',
+    };
+
+    setTransactions([transaction, ...transactions]);
+    setCredits(credits + monthlyCredits);
+    setLastMonthlyBonus(new Date());
+
+    return { success: true, transaction, amount: monthlyCredits };
+  };
+
+  // Get days until next monthly bonus
+  const getDaysUntilNextBonus = () => {
+    if (!lastMonthlyBonus) return 0; // Available now
+
+    const daysSinceLastBonus = Math.floor((new Date() - new Date(lastMonthlyBonus)) / (1000 * 60 * 60 * 24));
+    const daysRemaining = Math.max(0, 30 - daysSinceLastBonus);
+    return daysRemaining;
+  };
+
   const value = {
     credits,
     transactions,
+    lastMonthlyBonus,
     grantCredits,
     useCredits,
     calculateCreditUsage,
@@ -115,6 +169,11 @@ export const CreditsProvider = ({ children }) => {
     getUsedCredits,
     getTotalGranted,
     getTotalUsed,
+    canUseCredits,
+    getCreditsInHours,
+    isMonthlyBonusAvailable,
+    grantMonthlyBonus,
+    getDaysUntilNextBonus,
   };
 
   return (

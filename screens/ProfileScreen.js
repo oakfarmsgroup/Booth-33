@@ -8,7 +8,7 @@ import { useTier } from '../contexts/TierContext';
 import { darkenColor } from '../data/tierSystem';
 
 export default function ProfileScreen({ onLogout }) {
-  const { credits, getTransactionHistory, getTotalGranted, getTotalUsed } = useCredits();
+  const { credits, getTransactionHistory, getTotalGranted, getTotalUsed, isMonthlyBonusAvailable, grantMonthlyBonus, getDaysUntilNextBonus } = useCredits();
   const { paymentMethods, addPaymentMethod, removePaymentMethod, setDefaultPaymentMethod, getPaymentHistory } = usePayment();
   const { currentTier, nextTier, progress, userStats, getTierProgress, TIERS } = useTier();
 
@@ -139,6 +139,29 @@ export default function ProfileScreen({ onLogout }) {
   const handleSetDefaultCard = (cardId) => {
     setDefaultPaymentMethod(cardId);
     Alert.alert('Success', 'Default payment method updated');
+  };
+
+  const handleClaimMonthlyBonus = () => {
+    if (!isMonthlyBonusAvailable()) {
+      const daysRemaining = getDaysUntilNextBonus();
+      Alert.alert(
+        'Monthly Bonus Not Available',
+        `Your next monthly bonus will be available in ${daysRemaining} day${daysRemaining !== 1 ? 's' : ''}.`
+      );
+      return;
+    }
+
+    const result = grantMonthlyBonus(currentTier.name, currentTier.monthlyCredits);
+
+    if (result.success) {
+      Alert.alert(
+        '✨ Monthly Bonus Claimed!',
+        `You received $${result.amount} in studio credits as your ${currentTier.name} tier monthly bonus!`,
+        [{ text: 'Awesome!' }]
+      );
+    } else {
+      Alert.alert('Error', result.message);
+    }
   };
 
   const formatCardNumber = (text) => {
@@ -282,6 +305,41 @@ export default function ProfileScreen({ onLogout }) {
             </LinearGradient>
           </TouchableOpacity>
 
+          {/* Monthly Bonus Claim Button */}
+          {isMonthlyBonusAvailable() ? (
+            <TouchableOpacity
+              style={styles.monthlyBonusButton}
+              onPress={handleClaimMonthlyBonus}
+              activeOpacity={0.8}
+            >
+              <LinearGradient
+                colors={['#8B5CF6', '#EC4899']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.monthlyBonusGradient}
+              >
+                <Text style={styles.monthlyBonusIcon}>🎁</Text>
+                <View style={styles.monthlyBonusInfo}>
+                  <Text style={styles.monthlyBonusTitle}>Monthly Bonus Available!</Text>
+                  <Text style={styles.monthlyBonusSubtext}>
+                    Claim ${currentTier.monthlyCredits} {currentTier.name} tier credits
+                  </Text>
+                </View>
+                <Text style={styles.monthlyBonusArrow}>→</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.monthlyBonusCooldown}>
+              <Text style={styles.monthlyBonusCooldownIcon}>⏰</Text>
+              <View style={styles.monthlyBonusCooldownInfo}>
+                <Text style={styles.monthlyBonusCooldownTitle}>Next Monthly Bonus</Text>
+                <Text style={styles.monthlyBonusCooldownSubtext}>
+                  Available in {getDaysUntilNextBonus()} day{getDaysUntilNextBonus() !== 1 ? 's' : ''}
+                </Text>
+              </View>
+            </View>
+          )}
+
           {/* Activity Stats */}
           <View style={styles.activitySection}>
             <Text style={styles.sectionTitle}>Activity</Text>
@@ -315,7 +373,17 @@ export default function ProfileScreen({ onLogout }) {
 
           {/* Tier Status Section */}
           <View style={styles.tierSection}>
-            <Text style={styles.sectionTitle}>Membership Tier</Text>
+            <View style={styles.tierHeader}>
+              <Text style={styles.sectionTitle}>Membership Tier</Text>
+              <TouchableOpacity
+                onPress={() => {
+                  Vibration.vibrate(10);
+                  setShowTierModal(true);
+                }}
+              >
+                <Text style={styles.viewAllTiers}>View All →</Text>
+              </TouchableOpacity>
+            </View>
 
             <TouchableOpacity
               style={styles.tierCard}
@@ -325,52 +393,85 @@ export default function ProfileScreen({ onLogout }) {
               }}
               activeOpacity={0.9}
             >
+              {/* Background Gradient */}
               <LinearGradient
-                colors={[currentTier.color, darkenColor(currentTier.color)]}
+                colors={[currentTier.color, darkenColor(currentTier.color, 0.4)]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.tierGradient}
               >
-                <Text style={styles.tierEmoji}>{currentTier.emoji}</Text>
-                <Text style={styles.tierName}>{currentTier.name} Member</Text>
-
-                {/* Progress to next tier */}
-                <View style={styles.tierProgress}>
-                  {(() => {
-                    const nt = nextTier;
-                    const p = nt ? getTierProgress(userStats, nt.key).percent : 100;
-                    const label = nt ? `${p}% to ${nt.name}` : 'Top Tier Achieved';
-                    return (
-                      <>
-                        <Text style={styles.tierProgressText}>{label}</Text>
-                        <View style={styles.progressBarContainer}>
-                          <View style={[styles.progressBarFill, { width: `${p}%` }]} />
-                        </View>
-                      </>
-                    );
-                  })()}
+                {/* Current Tier Badge */}
+                <View style={styles.tierBadge}>
+                  <Text style={styles.tierEmoji}>{currentTier.emoji}</Text>
+                  <View style={styles.tierBadgeInfo}>
+                    <Text style={styles.tierBadgeLabel}>CURRENT TIER</Text>
+                    <Text style={styles.tierName}>{currentTier.name}</Text>
+                  </View>
                 </View>
 
-                {/* Requirements breakdown */}
-                {nextTier && (
-                  <View style={styles.requirementsList}>
-                    {Object.keys(nextTier.requirements).map((key) => {
-                      const have = userStats[key] ?? 0;
-                      const need = nextTier.requirements[key];
-                      const pct = need === 0 ? 100 : Math.min(100, Math.round((have / need) * 100));
-                      const label = key
-                        .replace(/([A-Z])/g, ' $1')
-                        .replace(/^./, (s) => s.toUpperCase());
-                      return (
-                        <View key={key} style={styles.requirementRow}>
-                          <Text style={styles.requirementLabel}>{label}</Text>
-                          <View style={styles.requirementBar}>
-                            <View style={[styles.requirementBarFill, { width: `${pct}%` }]} />
-                          </View>
-                          <Text style={styles.requirementPct}>{pct}%</Text>
+                {/* Benefits Preview */}
+                <View style={styles.tierBenefitsPreview}>
+                  {currentTier.benefits.slice(0, 2).map((benefit, index) => (
+                    <View key={index} style={styles.benefitRow}>
+                      <Text style={styles.benefitCheck}>✓</Text>
+                      <Text style={styles.benefitText}>{benefit}</Text>
+                    </View>
+                  ))}
+                </View>
+
+                {/* Next Tier Progress */}
+                {nextTier ? (
+                  <View style={styles.tierProgressSection}>
+                    <View style={styles.progressHeader}>
+                      <View style={styles.nextTierInfo}>
+                        <Text style={styles.nextTierLabel}>NEXT TIER</Text>
+                        <View style={styles.nextTierNameRow}>
+                          <Text style={styles.nextTierEmoji}>{nextTier.emoji}</Text>
+                          <Text style={styles.nextTierName}>{nextTier.name}</Text>
                         </View>
-                      );
-                    })}
+                      </View>
+                      <View style={styles.progressPercentBadge}>
+                        <Text style={styles.progressPercentText}>
+                          {getTierProgress(userStats, nextTier.key).percent}%
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.progressBarContainer}>
+                      <LinearGradient
+                        colors={['rgba(255,255,255,0.95)', 'rgba(255,255,255,0.7)']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                        style={[
+                          styles.progressBarFill,
+                          { width: `${getTierProgress(userStats, nextTier.key).percent}%` },
+                        ]}
+                      />
+                    </View>
+
+                    {/* Top 2 Requirements */}
+                    <View style={styles.requirementsList}>
+                      {Object.keys(nextTier.requirements).slice(0, 2).map((key) => {
+                        const have = userStats[key] ?? 0;
+                        const need = nextTier.requirements[key];
+                        const label = key
+                          .replace(/([A-Z])/g, ' $1')
+                          .replace(/^./, (s) => s.toUpperCase());
+                        return (
+                          <View key={key} style={styles.requirementRow}>
+                            <Text style={styles.requirementLabel}>{label}</Text>
+                            <Text style={styles.requirementValue}>
+                              {have}/{need}
+                            </Text>
+                          </View>
+                        );
+                      })}
+                    </View>
+                  </View>
+                ) : (
+                  <View style={styles.topTierBadge}>
+                    <Text style={styles.topTierIcon}>🏆</Text>
+                    <Text style={styles.topTierText}>Top Tier Achieved!</Text>
                   </View>
                 )}
               </LinearGradient>
@@ -1697,78 +1798,175 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     marginBottom: 24,
   },
+  tierHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  viewAllTiers: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#8B5CF6',
+  },
   tierCard: {
-    borderRadius: 16,
+    borderRadius: 20,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.2)',
+    shadowColor: '#8B5CF6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
   },
   tierGradient: {
-    padding: 20,
+    padding: 24,
+  },
+  tierBadge: {
+    flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    borderRadius: 16,
+    padding: 16,
   },
   tierEmoji: {
-    fontSize: 42,
-    marginBottom: 8,
+    fontSize: 48,
+    marginRight: 16,
+  },
+  tierBadgeInfo: {
+    flex: 1,
+  },
+  tierBadgeLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: 'rgba(255,255,255,0.7)',
+    letterSpacing: 1.5,
+    marginBottom: 4,
   },
   tierName: {
-    fontSize: 18,
-    fontWeight: '800',
+    fontSize: 24,
+    fontWeight: '900',
     color: '#FFFFFF',
-    marginBottom: 12,
   },
-  tierProgress: {
-    width: '100%',
-    marginBottom: 12,
+  tierBenefitsPreview: {
+    marginBottom: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.15)',
+    borderRadius: 12,
+    padding: 16,
   },
-  tierProgressText: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.9)',
-    marginBottom: 6,
-    textAlign: 'center',
-  },
-  progressBarContainer: {
-    width: '100%',
-    height: 8,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 6,
-    overflow: 'hidden',
-  },
-  progressBarFill: {
-    height: '100%',
-    backgroundColor: '#FFFFFF',
-  },
-  requirementsList: {
-    width: '100%',
-    marginTop: 8,
-  },
-  requirementRow: {
+  benefitRow: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 8,
   },
-  requirementLabel: {
-    width: 130,
-    fontSize: 12,
-    color: '#EEE',
+  benefitCheck: {
+    fontSize: 16,
+    marginRight: 12,
+    color: '#FFFFFF',
   },
-  requirementBar: {
+  benefitText: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.95)',
+    fontWeight: '600',
     flex: 1,
-    height: 6,
+  },
+  tierProgressSection: {
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    borderRadius: 16,
+    padding: 16,
+  },
+  progressHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  nextTierInfo: {
+    flex: 1,
+  },
+  nextTierLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: 'rgba(255,255,255,0.7)',
+    letterSpacing: 1.5,
+    marginBottom: 6,
+  },
+  nextTierNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  nextTierEmoji: {
+    fontSize: 20,
+    marginRight: 8,
+  },
+  nextTierName: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  progressPercentBadge: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  progressPercentText: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: '#FFFFFF',
+  },
+  progressBarContainer: {
+    width: '100%',
+    height: 10,
     backgroundColor: 'rgba(255,255,255,0.15)',
-    borderRadius: 4,
+    borderRadius: 8,
     overflow: 'hidden',
-    marginHorizontal: 8,
+    marginBottom: 16,
   },
-  requirementBarFill: {
+  progressBarFill: {
     height: '100%',
-    backgroundColor: '#8B5CF6',
+    borderRadius: 8,
   },
-  requirementPct: {
-    width: 40,
-    textAlign: 'right',
-    fontSize: 12,
-    color: '#CCC',
+  requirementsList: {
+    gap: 10,
+  },
+  requirementRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 8,
+    padding: 10,
+  },
+  requirementLabel: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.9)',
+    fontWeight: '600',
+    flex: 1,
+  },
+  requirementValue: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  topTierBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 215, 0, 0.2)',
+    borderRadius: 16,
+    padding: 20,
+  },
+  topTierIcon: {
+    fontSize: 32,
+    marginRight: 12,
+  },
+  topTierText: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#FFD700',
   },
   tierInfoCard: {
     backgroundColor: 'rgba(255,255,255,0.03)',
@@ -1896,5 +2094,74 @@ const styles = StyleSheet.create({
     color: '#666',
     textAlign: 'center',
     lineHeight: 20,
+  },
+  // Monthly Bonus Styles
+  monthlyBonusButton: {
+    marginHorizontal: 20,
+    marginBottom: 16,
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#8B5CF6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  monthlyBonusGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 20,
+  },
+  monthlyBonusIcon: {
+    fontSize: 32,
+    marginRight: 16,
+  },
+  monthlyBonusInfo: {
+    flex: 1,
+  },
+  monthlyBonusTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    marginBottom: 4,
+  },
+  monthlyBonusSubtext: {
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontWeight: '600',
+  },
+  monthlyBonusArrow: {
+    fontSize: 24,
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  monthlyBonusCooldown: {
+    marginHorizontal: 20,
+    marginBottom: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.2)',
+    borderRadius: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 20,
+  },
+  monthlyBonusCooldownIcon: {
+    fontSize: 32,
+    marginRight: 16,
+  },
+  monthlyBonusCooldownInfo: {
+    flex: 1,
+  },
+  monthlyBonusCooldownTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#999',
+    marginBottom: 4,
+  },
+  monthlyBonusCooldownSubtext: {
+    fontSize: 13,
+    color: '#666',
+    fontWeight: '600',
   },
 });

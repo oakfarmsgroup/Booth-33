@@ -21,7 +21,7 @@ export const BookingsProvider = ({ children }) => {
       duration: 2,
       price: 120,
       notes: 'Recording new single',
-      status: 'confirmed', // 'pending', 'confirmed', 'cancelled'
+      status: 'confirmed', // 'pending', 'confirmed', 'cancelled', 'completed'
       createdAt: new Date(),
     },
   ]);
@@ -63,6 +63,19 @@ export const BookingsProvider = ({ children }) => {
         ? { ...booking, status: 'cancelled' }
         : booking
     ));
+  };
+
+  const completeBooking = (bookingId) => {
+    const booking = bookings.find(b => b.id === bookingId);
+    if (!booking) return null;
+
+    setBookings(bookings.map(b =>
+      b.id === bookingId
+        ? { ...b, status: 'completed' }
+        : b
+    ));
+
+    return booking; // Return booking for session auto-creation
   };
 
   const getUpcomingBookings = () => {
@@ -219,6 +232,7 @@ export const BookingsProvider = ({ children }) => {
     bookings,
     addBooking,
     cancelBooking,
+    completeBooking,
     getUpcomingBookings,
     getPastBookings,
     isTimeSlotBooked,

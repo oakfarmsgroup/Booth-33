@@ -6,7 +6,13 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:ui": "playwright test --ui",
+    "test:debug": "playwright test --debug",
+    "test:report": "playwright show-report",
+    "mcp": "npx @playwright/mcp"
   },
   "dependencies": {
     "@react-native-community/slider": "^5.1.0",
@@ -24,6 +30,8 @@
   },
   "private": true,
   "devDependencies": {
+    "@playwright/mcp": "^0.0.45",
+    "@playwright/test": "^1.56.1",
     "babel-preset-expo": "^54.0.6",
     "chokidar-cli": "^3.0.0"
   }

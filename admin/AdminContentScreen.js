@@ -141,7 +141,7 @@ export default function AdminContentScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['left','right']}>
+    <SafeAreaView style={styles.container} edges={['top','left','right']}>
       <LinearGradient
         colors={['#0F0F0F', '#1A0F2E', '#0F0F0F']}
         style={styles.gradient}
@@ -344,7 +344,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 0,
+    paddingTop: 8,
     paddingBottom: 8,
   },
   headerTitle: {
@@ -377,18 +377,22 @@ const styles = StyleSheet.create({
     color: '#EF4444',
   },
   filterScroll: {
-    marginBottom: 0,
+    marginBottom: 12,
     paddingVertical: 0,
+    flexGrow: 0,
+    maxHeight: 40,
   },
   filterContainer: {
     paddingHorizontal: 20,
     alignItems: 'center',
   },
   filterTab: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     minHeight: 34,
     justifyContent: 'center',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderRadius: 999,
     marginRight: 8,
@@ -400,7 +404,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(245, 158, 11, 0.4)',
   },
   filterText: {
-    fontSize: 13,
+    fontSize: 11,
     fontWeight: '700',
     color: '#888',
   },

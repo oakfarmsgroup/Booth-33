@@ -17,6 +17,7 @@ import { ProfileProvider } from './contexts/ProfileContext';
 import { ReviewsProvider } from './contexts/ReviewsContext';
 import { RewardsProvider } from './contexts/RewardsContext';
 import { TierProvider } from './contexts/TierContext';
+import { SMSProvider } from './contexts/SMSContext';
 import MiniPlayer from './components/MiniPlayer';
 
 const Tab = createBottomTabNavigator();
@@ -27,13 +28,14 @@ export default function MainApp({ onLogout }) {
       <BookingsProvider>
         <CreditsProvider>
           <PaymentProvider>
-            <NotificationsProvider>
-              <MessagingProvider>
-                <SearchProvider>
-                  <ProfileProvider>
-                    <ReviewsProvider>
-                      <RewardsProvider>
-                        <TierProvider>
+            <SMSProvider>
+              <NotificationsProvider>
+                <MessagingProvider>
+                  <SearchProvider>
+                    <ProfileProvider>
+                      <ReviewsProvider>
+                        <RewardsProvider>
+                          <TierProvider>
                           <NavigationContainer independent={true}>
                           <View style={{ flex: 1 }}>
                             <Tab.Navigator
@@ -93,6 +95,7 @@ export default function MainApp({ onLogout }) {
                 </SearchProvider>
               </MessagingProvider>
             </NotificationsProvider>
+          </SMSProvider>
           </PaymentProvider>
         </CreditsProvider>
       </BookingsProvider>

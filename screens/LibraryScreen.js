@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Modal, Share, Alert, TextInput } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAudio } from '../contexts/AudioContext';
+import { useSessions } from '../contexts/SessionsContext';
 
 export default function LibraryScreen() {
   const { currentTrack, isPlaying, playTrack, togglePlayPause, addToQueue, clearQueue, playFromQueue, isInQueue, toggleTrackInQueue, toggleFavorite, isFavorite } = useAudio();
+  const { getAllDeliveredSessions } = useSessions();
   const [selectedSession, setSelectedSession] = useState(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [collapsedSessions, setCollapsedSessions] = useState(new Set());
@@ -13,8 +15,25 @@ export default function LibraryScreen() {
   const [sessionNames, setSessionNames] = useState({});
   const [filterType, setFilterType] = useState('all'); // 'all', 'favorites', 'music', 'podcast', 'upload'
 
+  // Get delivered sessions from admin and transform them to library format
+  const adminSessions = getAllDeliveredSessions().map(session => ({
+    id: session.id,
+    type: session.sessionType, // 'music' or 'podcast'
+    name: session.sessionName,
+    date: session.sessionDate,
+    status: 'completed',
+    isUpload: false,
+    files: session.files.map(file => ({
+      id: file.id,
+      name: file.fileName,
+      type: file.fileType, // 'audio' or 'video'
+      size: file.fileSize,
+      duration: file.duration,
+    })),
+  }));
+
   // Example sessions data (will come from backend later)
-  const sessions = [
+  const mockSessions = [
     {
       id: 1,
       type: 'music',
@@ -65,6 +84,9 @@ export default function LibraryScreen() {
       ],
     },
   ];
+
+  // Combine admin-delivered sessions with mock sessions
+  const sessions = [...adminSessions, ...mockSessions];
 
   // Auto-collapse sessions after the 3rd one on initial load
   React.useEffect(() => {
@@ -646,27 +668,33 @@ const styles = StyleSheet.create({
   },
   // Filter Chips
   filterChipsContainer: {
-    paddingTop: 4,
-    paddingBottom: 8,
+    paddingTop: 2,
+    paddingBottom: 4,
+    flexGrow: 0,
+    maxHeight: 40,
   },
   filterChipsContent: {
     paddingHorizontal: 20,
+    alignItems: 'center',
   },
   filterChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 999,
     backgroundColor: 'rgba(139, 92, 246, 0.1)',
     borderWidth: 1,
     borderColor: 'rgba(139, 92, 246, 0.3)',
-    marginRight: 6,
+    marginRight: 8,
+    alignSelf: 'flex-start',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   filterChipActive: {
     backgroundColor: '#8B5CF6',
     borderColor: '#8B5CF6',
   },
   filterChipText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
     color: '#8B5CF6',
   },

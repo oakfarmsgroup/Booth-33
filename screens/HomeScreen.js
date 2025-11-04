@@ -439,8 +439,8 @@ export default function HomeScreen() {
   const { searchAll, recentSearches, addRecentSearch, clearRecentSearches, removeRecentSearch, getTrendingTracks, getPopularUsers, getUpcomingEvents } = useSearch();
   const { getProfile, toggleFollow } = useProfile();
   const { getReviewsForUser, getAverageRating, getRatingBreakdown, getReviewStats, markHelpful } = useReviews();
-  const { userRewards, rewardTiers, milestones, referrals, rewardsHistory, getReferralLink, getCurrentTier, getNextTier, getPointsToNextTier, claimMilestone, getUnclaimedMilestones } = useRewards();
-  const { currentTier } = useTier();
+  const { userRewards, rewardTiers, milestones, referrals, rewardsHistory, getReferralLink, getPointsToNextTier, claimMilestone, getUnclaimedMilestones } = useRewards();
+  const { currentTier, nextTier } = useTier();
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [postCaption, setPostCaption] = useState('');
@@ -689,21 +689,6 @@ export default function HomeScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>BOOTH 33</Text>
-          <TouchableOpacity
-            onPress={() => setShowRewardsModal(true)}
-            activeOpacity={0.8}
-            style={[styles.tierBadge, { borderColor: (currentTier && currentTier.color) ? currentTier.color : '#8B5CF6' }]}
-          >
-            <LinearGradient
-              colors={[(currentTier && currentTier.color) ? currentTier.color : '#8B5CF6', darkenColor((currentTier && currentTier.color) ? currentTier.color : '#8B5CF6')]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.tierBadgeGradient}
-            >
-              <Text style={styles.tierBadgeEmoji}>{(currentTier && currentTier.emoji) ? currentTier.emoji : '⭐'}</Text>
-              <Text style={styles.tierBadgeText}>{(currentTier && currentTier.name) ? currentTier.name : 'Member'}</Text>
-            </LinearGradient>
-          </TouchableOpacity>
           <View style={styles.headerIcons}>
             <TouchableOpacity
               style={styles.iconButton}
@@ -741,7 +726,7 @@ export default function HomeScreen() {
               style={styles.iconButton}
               onPress={() => setShowRewardsModal(true)}
             >
-              <Text style={styles.icon}>{getCurrentTier().icon}</Text>
+              <Text style={styles.icon}>{currentTier.emoji}</Text>
               {userRewards.availableRewards > 0 && (
                 <View style={styles.notificationBadge}>
                   <Text style={styles.notificationBadgeText}>
@@ -2169,16 +2154,16 @@ export default function HomeScreen() {
                     <View style={styles.tierCard}>
                       <Text style={styles.tierCardTitle}>Your Tier</Text>
                       <View style={styles.tierDisplay}>
-                        <Text style={styles.tierIcon}>{getCurrentTier().icon}</Text>
-                        <Text style={styles.tierName}>{getCurrentTier().name}</Text>
+                        <Text style={styles.tierIcon}>{currentTier.emoji}</Text>
+                        <Text style={styles.tierName}>{currentTier.name}</Text>
                       </View>
 
                       {/* Progress to Next Tier */}
-                      {getNextTier() && (
+                      {nextTier && (
                         <View style={styles.tierProgressContainer}>
                           <View style={styles.tierProgressHeader}>
                             <Text style={styles.tierProgressText}>
-                              {getPointsToNextTier()} points to {getNextTier().name}
+                              {getPointsToNextTier()} points to {nextTier.name}
                             </Text>
                             <Text style={styles.tierProgressPercent}>{userRewards.tierProgress}%</Text>
                           </View>
@@ -2195,7 +2180,7 @@ export default function HomeScreen() {
 
                       {/* Current Tier Benefits */}
                       <Text style={styles.tierBenefitsTitle}>Your Benefits:</Text>
-                      {getCurrentTier().benefits.map((benefit, index) => (
+                      {currentTier.benefits.map((benefit, index) => (
                         <View key={index} style={styles.tierBenefit}>
                           <Text style={styles.tierBenefitIcon}>✓</Text>
                           <Text style={styles.tierBenefitText}>{benefit}</Text>

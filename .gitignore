@@ -1,3 +1,8 @@
 node_modules/
 .env
 .expo
+
+# Playwright
+test-results/
+playwright-report/
+playwright/.cache/

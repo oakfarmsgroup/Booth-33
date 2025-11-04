@@ -2,8 +2,12 @@ import React, { useState } from 'react';
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useBookings } from '../contexts/BookingsContext';
+import { useSessions } from '../contexts/SessionsContext';
 
 export default function AdminBookingsScreen() {
+  const { completeBooking } = useBookings();
+  const { createSessionFromBooking, hasSessionForBooking } = useSessions();
   const [filter, setFilter] = useState('pending'); // 'pending', 'confirmed', 'completed', 'cancelled'
 
   const [bookings, setBookings] = useState([
@@ -98,10 +102,46 @@ export default function AdminBookingsScreen() {
           text: 'Reject',
           style: 'destructive',
           onPress: () => {
-            setBookings(bookings.map(b => 
+            setBookings(bookings.map(b =>
               b.id === booking.id ? { ...b, status: 'cancelled' } : b
             ));
             Alert.alert('Rejected', 'Booking rejected. User will be notified.');
+          },
+        },
+      ]
+    );
+  };
+
+  const handleComplete = (booking) => {
+    // Check if session already exists for this booking
+    if (hasSessionForBooking(booking.id)) {
+      Alert.alert('Session Exists', 'A session has already been created for this booking.');
+      return;
+    }
+
+    Alert.alert(
+      'Complete Booking',
+      `Mark booking for ${booking.user} as completed?\n\nThis will automatically create a draft session for file uploads.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Complete',
+          onPress: () => {
+            // Update local state
+            setBookings(bookings.map(b =>
+              b.id === booking.id ? { ...b, status: 'completed' } : b
+            ));
+
+            // Update context
+            completeBooking(booking.id);
+
+            // Auto-create session
+            const session = createSessionFromBooking(booking);
+
+            Alert.alert(
+              'Success',
+              `Booking completed!\n\nA draft session "${session.sessionName}" has been created. You can now upload files in the Sessions tab.`
+            );
           },
         },
       ]
@@ -125,7 +165,7 @@ export default function AdminBookingsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['left','right']}>
+    <SafeAreaView style={styles.container} edges={['top','left','right']}>
       <LinearGradient
         colors={['#0F0F0F', '#1A0F2E', '#0F0F0F']}
         style={styles.gradient}
@@ -254,13 +294,13 @@ export default function AdminBookingsScreen() {
                   {/* Actions (for pending bookings) */}
                   {booking.status === 'pending' && (
                     <View style={styles.actionsContainer}>
-                      <TouchableOpacity 
+                      <TouchableOpacity
                         style={styles.rejectButton}
                         onPress={() => handleReject(booking)}
                       >
                         <Text style={styles.rejectButtonText}>Reject</Text>
                       </TouchableOpacity>
-                      <TouchableOpacity 
+                      <TouchableOpacity
                         style={styles.approveButton}
                         onPress={() => handleApprove(booking)}
                       >
@@ -273,6 +313,32 @@ export default function AdminBookingsScreen() {
                           <Text style={styles.approveButtonText}>Approve</Text>
                         </LinearGradient>
                       </TouchableOpacity>
+                    </View>
+                  )}
+
+                  {/* Actions (for confirmed bookings) */}
+                  {booking.status === 'confirmed' && !hasSessionForBooking(booking.id) && (
+                    <View style={styles.actionsContainer}>
+                      <TouchableOpacity
+                        style={styles.completeButton}
+                        onPress={() => handleComplete(booking)}
+                      >
+                        <LinearGradient
+                          colors={['#3B82F6', '#2563EB']}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 0 }}
+                          style={styles.completeGradient}
+                        >
+                          <Text style={styles.completeButtonText}>Mark Complete & Create Session</Text>
+                        </LinearGradient>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+
+                  {/* Session already exists indicator */}
+                  {booking.status === 'confirmed' && hasSessionForBooking(booking.id) && (
+                    <View style={styles.sessionExistsContainer}>
+                      <Text style={styles.sessionExistsText}>✓ Session created</Text>
                     </View>
                   )}
                 </View>
@@ -300,7 +366,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 0,
+    paddingTop: 8,
     paddingBottom: 8,
   },
   headerTitle: {
@@ -322,18 +388,22 @@ const styles = StyleSheet.create({
     color: '#F59E0B',
   },
   filterScroll: {
-    marginBottom: 0,
+    marginBottom: 12,
     paddingVertical: 0,
+    flexGrow: 0,
+    maxHeight: 40,
   },
   filterContainer: {
     paddingHorizontal: 20,
     alignItems: 'center',
   },
   filterTab: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     minHeight: 34,
     justifyContent: 'center',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderRadius: 999,
     marginRight: 8,
@@ -345,7 +415,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(245, 158, 11, 0.4)',
   },
   filterText: {
-    fontSize: 13,
+    fontSize: 11,
     fontWeight: '700',
     color: '#888',
   },
@@ -484,5 +554,32 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  completeButton: {
+    flex: 1,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  completeGradient: {
+    padding: 14,
+    alignItems: 'center',
+  },
+  completeButtonText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  sessionExistsContainer: {
+    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(59, 130, 246, 0.3)',
+    borderRadius: 12,
+    padding: 12,
+    alignItems: 'center',
+  },
+  sessionExistsText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#3B82F6',
   },
 });

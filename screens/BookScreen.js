@@ -1,16 +1,22 @@
 import React, { useState } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, ScrollView, TextInput, Modal, Alert, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import Slider from '@react-native-community/slider';
 import { useBookings } from '../contexts/BookingsContext';
 import { useCredits } from '../contexts/CreditsContext';
 import { usePayment } from '../contexts/PaymentContext';
 import { useNotifications } from '../contexts/NotificationsContext';
+import { useTier } from '../contexts/TierContext';
+import { getTierDiscount } from '../data/tierSystem';
+import { useSMS } from '../contexts/SMSContext';
 
 export default function BookScreen() {
   const { addBooking, isTimeSlotBooked, getUpcomingBookings, getPastBookings, cancelBooking, getEventForTimeSlot, events, rsvpToEvent, unrsvpFromEvent, isUserRSVPd } = useBookings();
-  const { credits, useCredits: applyCredits, calculateCreditUsage } = useCredits();
+  const { credits, useCredits: applyCredits, calculateCreditUsage, canUseCredits, getCreditsInHours } = useCredits();
   const { processPayment, getDefaultPaymentMethod, paymentMethods } = usePayment();
   const { notifyPaymentSuccess, notifyPaymentFailed } = useNotifications();
+  const { currentTier } = useTier();
+  const { scheduleBookingReminders } = useSMS();
 
   const [selectedType, setSelectedType] = useState('music'); // 'music' or 'podcast'
   const [selectedDate, setSelectedDate] = useState(0); // Index of selected date
@@ -24,6 +30,7 @@ export default function BookScreen() {
   const [bookingDetails, setBookingDetails] = useState(null);
   const [tipsExpanded, setTipsExpanded] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [creditsToUse, setCreditsToUse] = useState(0); // User-selected credit amount
 
   // Generate next 7 days
   const dates = [];
@@ -46,6 +53,40 @@ export default function BookScreen() {
   const getCurrentPrice = () => {
     const option = durationOptions.find(opt => opt.hours === selectedDuration);
     return option ? option.price : 120;
+  };
+
+  const getTierDiscountPercent = () => {
+    return currentTier ? getTierDiscount(currentTier.key) : 0;
+  };
+
+  const getTierDiscountAmount = () => {
+    const basePrice = getCurrentPrice();
+    const discountPercent = getTierDiscountPercent();
+    return basePrice * (discountPercent / 100);
+  };
+
+  const getFinalPrice = () => {
+    const basePrice = getCurrentPrice();
+    const discount = getTierDiscountAmount();
+    return basePrice - discount;
+  };
+
+  // Get max credits that can be applied
+  const getMaxCreditsForBooking = () => {
+    return Math.min(credits, getFinalPrice());
+  };
+
+  // Calculate breakdown based on user-selected credits
+  const getCreditBreakdown = () => {
+    const bookingPrice = getFinalPrice();
+    const creditsApplied = Math.min(creditsToUse, bookingPrice, credits);
+    const remainingPrice = bookingPrice - creditsApplied;
+
+    return {
+      creditsToUse: creditsApplied,
+      remainingPrice: remainingPrice,
+      canCoverFull: creditsApplied === bookingPrice && bookingPrice > 0,
+    };
   };
 
   // Time slots from 9 AM to 9 PM
@@ -85,8 +126,8 @@ export default function BookScreen() {
       return;
     }
 
-    const fullPrice = getCurrentPrice();
-    const creditCalc = calculateCreditUsage(fullPrice);
+    const fullPrice = getFinalPrice(); // Use discounted price
+    const creditCalc = getCreditBreakdown(); // Use user-selected credits
     const remainingBalance = creditCalc.remainingPrice;
 
     // Check if payment method is needed and available
@@ -123,8 +164,8 @@ export default function BookScreen() {
 
       const newBooking = addBooking(booking);
 
-      // Apply credits if available
-      if (creditCalc.creditsToUse > 0) {
+      // Apply credits if available AND meets minimum requirement
+      if (creditCalc.creditsToUse > 0 && canUseCredits()) {
         const result = applyCredits(
           creditCalc.creditsToUse,
           newBooking.id,
@@ -165,6 +206,14 @@ export default function BookScreen() {
         // Notify payment success
         notifyPaymentSuccess(remainingBalance, `${selectedType} session`);
       }
+
+      // Schedule SMS reminders (mock phone number for now)
+      const mockPhoneNumber = '+1234567890'; // In real app, get from user profile
+      scheduleBookingReminders(newBooking.id, mockPhoneNumber, {
+        date: dates[selectedDate],
+        timeSlot: selectedTimeSlot,
+        type: selectedType,
+      });
 
       // Store booking details for modal (including credit and payment info)
       const details = {
@@ -438,10 +487,28 @@ export default function BookScreen() {
                   </Text>
                 </View>
 
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Price:</Text>
-                  <Text style={styles.detailValuePrice}>${getCurrentPrice()}</Text>
-                </View>
+                {/* Price with Tier Discount */}
+                {getTierDiscountPercent() > 0 ? (
+                  <>
+                    <View style={styles.detailRow}>
+                      <Text style={styles.detailLabel}>Base Price:</Text>
+                      <Text style={styles.detailValue}>${getCurrentPrice().toFixed(2)}</Text>
+                    </View>
+                    <View style={styles.detailRow}>
+                      <Text style={styles.detailLabel}>{currentTier.emoji} {currentTier.name} Discount ({getTierDiscountPercent()}%):</Text>
+                      <Text style={styles.detailValueDiscount}>-${getTierDiscountAmount().toFixed(2)}</Text>
+                    </View>
+                    <View style={[styles.detailRow, styles.detailRowTotal]}>
+                      <Text style={styles.detailLabelTotal}>Total Price:</Text>
+                      <Text style={styles.detailValuePrice}>${getFinalPrice().toFixed(2)}</Text>
+                    </View>
+                  </>
+                ) : (
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Price:</Text>
+                    <Text style={styles.detailValuePrice}>${getCurrentPrice().toFixed(2)}</Text>
+                  </View>
+                )}
               </View>
 
               {/* Notes Input */}
@@ -460,29 +527,87 @@ export default function BookScreen() {
                 <View style={styles.creditsSection}>
                   <View style={styles.creditsHeader}>
                     <Text style={styles.creditsTitle}>💳 Studio Credits Available</Text>
-                    <Text style={styles.creditsBalance}>${credits.toFixed(2)}</Text>
+                    <Text style={styles.creditsBalance}>
+                      ${credits.toFixed(2)} ({getCreditsInHours()} {getCreditsInHours() === 1 ? 'hour' : 'hours'})
+                    </Text>
                   </View>
+
                   {selectedDuration && (
                     <>
-                      <View style={styles.creditBreakdown}>
-                        <View style={styles.creditRow}>
-                          <Text style={styles.creditLabel}>Booking Price:</Text>
-                          <Text style={styles.creditValue}>${getCurrentPrice().toFixed(2)}</Text>
-                        </View>
-                        <View style={styles.creditRow}>
-                          <Text style={styles.creditLabel}>Credits Applied:</Text>
-                          <Text style={styles.creditValueGreen}>
-                            -${calculateCreditUsage(getCurrentPrice()).creditsToUse.toFixed(2)}
+                      {/* Credit Amount Selector */}
+                      <View style={styles.creditSelector}>
+                        <View style={styles.creditSelectorHeader}>
+                          <Text style={styles.creditSelectorLabel}>Credits to Use:</Text>
+                          <Text style={styles.creditSelectorValue}>
+                            ${creditsToUse.toFixed(2)}
                           </Text>
                         </View>
-                        <View style={[styles.creditRow, styles.creditRowTotal]}>
-                          <Text style={styles.creditLabelTotal}>You Pay:</Text>
-                          <Text style={styles.creditValueTotal}>
-                            ${calculateCreditUsage(getCurrentPrice()).remainingPrice.toFixed(2)}
+
+                        <Slider
+                          style={styles.creditSlider}
+                          minimumValue={0}
+                          maximumValue={getMaxCreditsForBooking()}
+                          value={creditsToUse}
+                          onValueChange={setCreditsToUse}
+                          minimumTrackTintColor="#8B5CF6"
+                          maximumTrackTintColor="rgba(139, 92, 246, 0.3)"
+                          thumbTintColor="#8B5CF6"
+                          step={1}
+                        />
+
+                        <View style={styles.creditSliderLabels}>
+                          <Text style={styles.creditSliderLabelText}>$0</Text>
+                          <Text style={styles.creditSliderLabelText}>
+                            Max: ${getMaxCreditsForBooking().toFixed(2)}
                           </Text>
+                        </View>
+
+                        {/* Quick Select Buttons */}
+                        <View style={styles.creditQuickSelect}>
+                          <TouchableOpacity
+                            style={styles.creditQuickButton}
+                            onPress={() => setCreditsToUse(0)}
+                          >
+                            <Text style={styles.creditQuickButtonText}>None</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={styles.creditQuickButton}
+                            onPress={() => setCreditsToUse(Math.floor(getMaxCreditsForBooking() / 2))}
+                          >
+                            <Text style={styles.creditQuickButtonText}>Half</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={styles.creditQuickButton}
+                            onPress={() => setCreditsToUse(getMaxCreditsForBooking())}
+                          >
+                            <Text style={styles.creditQuickButtonText}>Max</Text>
+                          </TouchableOpacity>
                         </View>
                       </View>
-                      {calculateCreditUsage(getCurrentPrice()).canCoverFull && (
+
+                      {/* Credit Breakdown */}
+                      {creditsToUse > 0 && (
+                        <View style={styles.creditBreakdown}>
+                          <View style={styles.creditRow}>
+                            <Text style={styles.creditLabel}>Booking Price:</Text>
+                            <Text style={styles.creditValue}>${getFinalPrice().toFixed(2)}</Text>
+                          </View>
+                          <View style={styles.creditRow}>
+                            <Text style={styles.creditLabel}>Credits Applied:</Text>
+                            <Text style={styles.creditValueGreen}>
+                              -${getCreditBreakdown().creditsToUse.toFixed(2)}
+                            </Text>
+                          </View>
+                          <View style={[styles.creditRow, styles.creditRowTotal]}>
+                            <Text style={styles.creditLabelTotal}>You Pay:</Text>
+                            <Text style={styles.creditValueTotal}>
+                              ${getCreditBreakdown().remainingPrice.toFixed(2)}
+                            </Text>
+                          </View>
+                        </View>
+                      )}
+
+                      {getCreditBreakdown().canCoverFull && (
                         <View style={styles.freeBadge}>
                           <Text style={styles.freeBadgeText}>✨ FREE with credits! ✨</Text>
                         </View>
@@ -493,7 +618,7 @@ export default function BookScreen() {
               )}
 
               {/* Payment Method Display */}
-              {selectedDuration && calculateCreditUsage(getCurrentPrice()).remainingPrice > 0 && (
+              {selectedDuration && getCreditBreakdown().remainingPrice > 0 && (
                 <View style={styles.paymentMethodSection}>
                   <Text style={styles.paymentMethodTitle}>💳 Payment Method</Text>
                   {paymentMethods.length > 0 ? (
@@ -502,7 +627,7 @@ export default function BookScreen() {
                         {getDefaultPaymentMethod()?.brand.toUpperCase()} •••• {getDefaultPaymentMethod()?.last4}
                       </Text>
                       <Text style={styles.paymentMethodInfo}>
-                        ${calculateCreditUsage(getCurrentPrice()).remainingPrice.toFixed(2)} will be charged
+                        ${calculateCreditUsage(getFinalPrice()).remainingPrice.toFixed(2)} will be charged
                       </Text>
                     </View>
                   ) : (
@@ -1272,6 +1397,22 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#10B981',
   },
+  detailValueDiscount: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#F59E0B',
+  },
+  detailRowTotal: {
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(16, 185, 129, 0.2)',
+    marginTop: 8,
+    paddingTop: 12,
+  },
+  detailLabelTotal: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
   notesInput: {
     marginHorizontal: 20,
     padding: 16,
@@ -1815,6 +1956,63 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#10B981',
     letterSpacing: 1,
+  },
+  // Credit Selector Styles
+  creditSelector: {
+    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.3)',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 12,
+  },
+  creditSelectorHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  creditSelectorLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#8B5CF6',
+  },
+  creditSelectorValue: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#8B5CF6',
+  },
+  creditSlider: {
+    width: '100%',
+    height: 40,
+  },
+  creditSliderLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 4,
+  },
+  creditSliderLabelText: {
+    fontSize: 12,
+    color: '#999',
+  },
+  creditQuickSelect: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 16,
+  },
+  creditQuickButton: {
+    flex: 1,
+    backgroundColor: 'rgba(139, 92, 246, 0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.4)',
+    borderRadius: 8,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  creditQuickButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#8B5CF6',
   },
   // Success Modal Credits Styles
   modalDetailValueGreen: {
