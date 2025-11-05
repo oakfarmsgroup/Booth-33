@@ -12,6 +12,8 @@ import { useReviews } from '../contexts/ReviewsContext';
 import { useRewards } from '../contexts/RewardsContext';
 import { useTier } from '../contexts/TierContext';
 import { darkenColor } from '../data/tierSystem';
+import { getFeedPosts, createPost, likePost, unlikePost, addComment, getPostComments, uploadAudio, uploadImage } from '../services/postsService';
+import { getCurrentUser } from '../config/supabase';
 
 // Purple Glowing Loading Spinner Component
 function LoadingSpinner() {
@@ -463,34 +465,68 @@ export default function HomeScreen() {
   const [showRewardsModal, setShowRewardsModal] = useState(false);
   const [rewardsTab, setRewardsTab] = useState('overview'); // 'overview', 'milestones', 'referrals', 'history'
 
-  // Posts state - initialize with existing posts
-  const [posts, setPosts] = useState([
-    {
-      id: 1,
-      user: 'Mike Soundz',
-      avatar: require('../assets/images/Artist.png'),
-      time: '2 hours ago',
-      caption: 'Just dropped a new track! 🔥 Let me know what you think',
-      audioFile: 'New_Track_Mix.mp3',
-      audioIcon: '🎵',
-      likeCount: 234,
-      commentCount: 12,
-    },
-    {
-      id: 2,
-      user: 'Podcast Jay',
-      avatar: require('../assets/images/Artist_Locs.png'),
-      time: '5 hours ago',
-      caption: 'New episode out now! Talking about the music industry 🎤',
-      audioFile: 'Episode_12.mp3',
-      audioIcon: '🎙️',
-      likeCount: 189,
-      commentCount: 34,
-    },
-  ]);
+  // Posts state - will be loaded from Supabase
+  const [posts, setPosts] = useState([]);
+  const [postsLoading, setPostsLoading] = useState(true);
+  const [postsError, setPostsError] = useState(null);
 
   // Track comment counts separately to allow updates without re-rendering posts
   const [postCommentCounts, setPostCommentCounts] = useState({});
+
+  // Fetch posts from Supabase on mount
+  useEffect(() => {
+    loadPosts();
+  }, []);
+
+  const loadPosts = async () => {
+    setPostsLoading(true);
+    setPostsError(null);
+
+    try {
+      const result = await getFeedPosts(50, 0); // Get 50 most recent posts
+
+      if (result.success && result.data) {
+        // Transform Supabase posts to match the expected format
+        const transformedPosts = result.data.map(post => ({
+          id: post.id,
+          user: post.profiles?.full_name || post.profiles?.username || 'Unknown User',
+          avatar: post.profiles?.avatar_url ? { uri: post.profiles.avatar_url } : require('../assets/images/Artist.png'),
+          time: formatPostTime(new Date(post.created_at)),
+          caption: post.content,
+          audioFile: post.audio_url,
+          audioIcon: post.audio_url ? '🎵' : null,
+          imageUrl: post.image_url,
+          likeCount: post.like_count || 0,
+          commentCount: post.comment_count || 0,
+          verified: post.profiles?.verified || false,
+        }));
+
+        setPosts(transformedPosts);
+      } else {
+        setPostsError(result.error || 'Failed to load posts');
+      }
+    } catch (error) {
+      console.error('Error loading posts:', error);
+      setPostsError('An unexpected error occurred');
+    } finally {
+      setPostsLoading(false);
+    }
+  };
+
+  // Helper function to format post time
+  const formatPostTime = (date) => {
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
 
   // Combine posts with events (auto-post events to feed)
   const combinedFeed = useMemo(() => {
@@ -547,7 +583,7 @@ export default function HomeScreen() {
     setSelectedFile(mockFile);
   };
 
-  const handleCreatePost = () => {
+  const handleCreatePost = async () => {
     if (!postCaption.trim()) {
       Alert.alert('Error', 'Please add a caption');
       return;
@@ -558,37 +594,65 @@ export default function HomeScreen() {
       return;
     }
 
-    // Create new post object
-    const newPost = {
-      id: Date.now(), // Simple ID generation
-      user: 'You',
-      avatar: require('../assets/images/Artist.png'), // Default avatar
-      time: 'Just now',
-      caption: postCaption,
-      audioFile: selectedFile ? selectedFile.name : null,
-      audioIcon: postType === 'audio' ? '🎵' : null,
-      likeCount: 0,
-      commentCount: 0,
-    };
+    try {
+      // Check authentication
+      const currentUser = await getCurrentUser();
+      if (!currentUser) {
+        Alert.alert('Authentication Required', 'Please sign in to create a post');
+        return;
+      }
 
-    // Add post to beginning of feed
-    setPosts(prevPosts => [newPost, ...prevPosts]);
+      // Upload audio file if present (placeholder - will need real file upload)
+      let audioUrl = null;
+      if (postType === 'audio' && selectedFile) {
+        // TODO: Implement real audio file upload
+        // const uploadResult = await uploadAudio(selectedFile.uri, selectedFile.name);
+        // if (uploadResult.success) {
+        //   audioUrl = uploadResult.url;
+        // }
+      }
 
-    // Show success
-    Alert.alert('Success!', 'Your post has been created!');
+      // Create post in Supabase
+      const result = await createPost(postCaption, audioUrl, null);
 
-    // Reset form
-    setPostCaption('');
-    setSelectedFile(null);
-    setShowCreateModal(false);
+      if (result.success) {
+        // Add optimistic update to local state
+        const newPost = {
+          id: result.data.id,
+          user: result.data.profiles?.full_name || 'You',
+          avatar: result.data.profiles?.avatar_url ? { uri: result.data.profiles.avatar_url } : require('../assets/images/Artist.png'),
+          time: 'Just now',
+          caption: postCaption,
+          audioFile: audioUrl,
+          audioIcon: postType === 'audio' ? '🎵' : null,
+          likeCount: 0,
+          commentCount: 0,
+        };
+
+        setPosts(prevPosts => [newPost, ...prevPosts]);
+
+        Alert.alert('Success!', 'Your post has been created!');
+
+        // Reset form
+        setPostCaption('');
+        setSelectedFile(null);
+        setShowCreateModal(false);
+
+        // Reload posts to get fresh data
+        await loadPosts();
+      } else {
+        Alert.alert('Error', result.error || 'Failed to create post');
+      }
+    } catch (error) {
+      console.error('Create post error:', error);
+      Alert.alert('Error', 'An unexpected error occurred while creating your post');
+    }
   };
 
-  const onRefresh = () => {
+  const onRefresh = async () => {
     setRefreshing(true);
-    // Simulate fetching new posts
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 1500);
+    await loadPosts();
+    setRefreshing(false);
   };
 
   // Available reaction emojis
