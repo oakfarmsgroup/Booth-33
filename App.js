@@ -4,12 +4,16 @@ import { StyleSheet, Text, View, TouchableOpacity, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import LoginScreen from './LoginScreen';
 import SignUpScreen from './SignUpScreen';
+import ForgotPasswordScreen from './ForgotPasswordScreen';
+import VerifyCodeScreen from './VerifyCodeScreen';
+import ResetPasswordScreen from './ResetPasswordScreen';
 import MainApp from './MainApp';
 import AdminLoginScreen from './AdminLoginScreen';
 import AdminMainApp from './AdminMainApp';
 
 export default function App() {
-  const [currentScreen, setCurrentScreen] = useState('welcome'); // 'welcome', 'login', 'signup', 'main', 'adminLogin', or 'admin'
+  const [currentScreen, setCurrentScreen] = useState('welcome'); // 'welcome', 'login', 'signup', 'main', 'adminLogin', 'admin', 'forgotPassword', 'verifyCode', 'resetPassword'
+  const [resetEmail, setResetEmail] = useState(''); // Email for password reset flow
 
   // Welcome Screen
   if (currentScreen === 'welcome') {
@@ -97,10 +101,11 @@ export default function App() {
   if (currentScreen === 'login') {
     return (
       <>
-        <LoginScreen 
+        <LoginScreen
           onBackPress={() => setCurrentScreen('welcome')}
           onSignUpPress={() => setCurrentScreen('signup')}
           onLoginSuccess={() => setCurrentScreen('main')}
+          onForgotPasswordPress={() => setCurrentScreen('forgotPassword')}
         />
         <StatusBar style="light" />
       </>
@@ -111,9 +116,58 @@ export default function App() {
   if (currentScreen === 'signup') {
     return (
       <>
-        <SignUpScreen 
+        <SignUpScreen
           onBackPress={() => setCurrentScreen('login')}
           onSignUpSuccess={() => setCurrentScreen('main')}
+        />
+        <StatusBar style="light" />
+      </>
+    );
+  }
+
+  // Forgot Password Screen
+  if (currentScreen === 'forgotPassword') {
+    return (
+      <>
+        <ForgotPasswordScreen
+          onBackPress={() => setCurrentScreen('login')}
+          onCodeSent={(email) => {
+            setResetEmail(email);
+            setCurrentScreen('verifyCode');
+          }}
+        />
+        <StatusBar style="light" />
+      </>
+    );
+  }
+
+  // Verify Code Screen
+  if (currentScreen === 'verifyCode') {
+    return (
+      <>
+        <VerifyCodeScreen
+          email={resetEmail}
+          onBackPress={() => setCurrentScreen('forgotPassword')}
+          onCodeVerified={(email) => {
+            setResetEmail(email);
+            setCurrentScreen('resetPassword');
+          }}
+        />
+        <StatusBar style="light" />
+      </>
+    );
+  }
+
+  // Reset Password Screen
+  if (currentScreen === 'resetPassword') {
+    return (
+      <>
+        <ResetPasswordScreen
+          email={resetEmail}
+          onResetSuccess={() => {
+            setResetEmail('');
+            setCurrentScreen('login');
+          }}
         />
         <StatusBar style="light" />
       </>

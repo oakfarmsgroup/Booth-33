@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { StyleSheet, Text, View, TextInput, TouchableOpacity, Image, KeyboardAvoidingView, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
-export default function LoginScreen({ onBackPress, onSignUpPress, onLoginSuccess }) {
+export default function LoginScreen({ onBackPress, onSignUpPress, onLoginSuccess, onForgotPasswordPress }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
@@ -64,7 +64,7 @@ export default function LoginScreen({ onBackPress, onSignUpPress, onLoginSuccess
           />
 
           {/* Forgot Password */}
-          <TouchableOpacity style={styles.forgotButton}>
+          <TouchableOpacity style={styles.forgotButton} onPress={onForgotPasswordPress}>
             <Text style={styles.forgotText}>Forgot Password?</Text>
           </TouchableOpacity>
         </View>
