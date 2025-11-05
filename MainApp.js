@@ -19,28 +19,20 @@ import { ReviewsProvider } from './contexts/ReviewsContext';
 import { RewardsProvider } from './contexts/RewardsContext';
 import { TierProvider } from './contexts/TierContext';
 import { SMSProvider } from './contexts/SMSContext';
+import { ToastProvider, useToast } from './contexts/ToastContext';
 import MiniPlayer from './components/MiniPlayer';
+import Toast from './components/Toast';
 
 const Tab = createBottomTabNavigator();
 
-export default function MainApp({ onLogout }) {
+function MainAppContent({ onLogout }) {
+  const { toast, hideToast } = useToast();
+
   return (
-    <AudioProvider>
-      <BookingsProvider>
-        <SessionsProvider>
-          <CreditsProvider>
-            <PaymentProvider>
-              <SMSProvider>
-                <NotificationsProvider>
-                  <MessagingProvider>
-                    <SearchProvider>
-                      <ProfileProvider>
-                        <ReviewsProvider>
-                          <RewardsProvider>
-                            <TierProvider>
-                          <NavigationContainer independent={true}>
-                          <View style={{ flex: 1 }}>
-                            <Tab.Navigator
+    <>
+      <NavigationContainer independent={true}>
+        <View style={{ flex: 1 }}>
+          <Tab.Navigator
                               screenOptions={{
                                 headerShown: false,
                                 tabBarStyle: {
@@ -86,23 +78,54 @@ export default function MainApp({ onLogout }) {
                               </Tab.Screen>
                             </Tab.Navigator>
 
-                            {/* MiniPlayer persists across all screens */}
-                            <MiniPlayer />
-                          </View>
-                          </NavigationContainer>
-                            </TierProvider>
-                          </RewardsProvider>
-                        </ReviewsProvider>
-                      </ProfileProvider>
-                    </SearchProvider>
-                  </MessagingProvider>
-                </NotificationsProvider>
-              </SMSProvider>
-            </PaymentProvider>
-          </CreditsProvider>
-        </SessionsProvider>
-      </BookingsProvider>
-    </AudioProvider>
+          {/* MiniPlayer persists across all screens */}
+          <MiniPlayer />
+        </View>
+      </NavigationContainer>
+
+      {/* Global Toast */}
+      <Toast
+        visible={toast.visible}
+        message={toast.message}
+        type={toast.type}
+        duration={toast.duration}
+        onHide={hideToast}
+      />
+    </>
+  );
+}
+
+export default function MainApp({ onLogout }) {
+  return (
+    <ToastProvider>
+      <AudioProvider>
+        <BookingsProvider>
+          <SessionsProvider>
+            <CreditsProvider>
+              <PaymentProvider>
+                <SMSProvider>
+                  <NotificationsProvider>
+                    <MessagingProvider>
+                      <SearchProvider>
+                        <ProfileProvider>
+                          <ReviewsProvider>
+                            <RewardsProvider>
+                              <TierProvider>
+                                <MainAppContent onLogout={onLogout} />
+                              </TierProvider>
+                            </RewardsProvider>
+                          </ReviewsProvider>
+                        </ProfileProvider>
+                      </SearchProvider>
+                    </MessagingProvider>
+                  </NotificationsProvider>
+                </SMSProvider>
+              </PaymentProvider>
+            </CreditsProvider>
+          </SessionsProvider>
+        </BookingsProvider>
+      </AudioProvider>
+    </ToastProvider>
   );
 }
 

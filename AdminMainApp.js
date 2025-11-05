@@ -1,5 +1,5 @@
 import React from 'react';
-import { Text } from 'react-native';
+import { Text, View } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { NavigationContainer } from '@react-navigation/native';
 import AdminOverviewScreen from './admin/AdminOverviewScreen';
@@ -19,23 +19,18 @@ import { SearchProvider } from './contexts/SearchContext';
 import { ProfileProvider } from './contexts/ProfileContext';
 import { ReviewsProvider } from './contexts/ReviewsContext';
 import { RewardsProvider } from './contexts/RewardsContext';
+import { ToastProvider, useToast } from './contexts/ToastContext';
+import Toast from './components/Toast';
 
 const Tab = createBottomTabNavigator();
 
-export default function AdminMainApp({ onLogout }) {
+function AdminMainAppContent({ onLogout }) {
+  const { toast, hideToast } = useToast();
+
   return (
-    <BookingsProvider>
-      <SessionsProvider>
-        <CreditsProvider>
-          <PaymentProvider>
-            <NotificationsProvider>
-              <MessagingProvider>
-                <SearchProvider>
-                  <ProfileProvider>
-                    <ReviewsProvider>
-                      <RewardsProvider>
-                        <NavigationContainer independent={true}>
-                        <Tab.Navigator
+    <>
+      <NavigationContainer independent={true}>
+        <Tab.Navigator
                           screenOptions={{
                             headerShown: false,
                             tabBarStyle: {
@@ -88,18 +83,46 @@ export default function AdminMainApp({ onLogout }) {
                           <Tab.Screen name="Settings" options={{ tabBarIcon: () => <AdminTabIcon emoji={'⚙️'} /> }}>
                             {() => <AdminSettingsScreen onLogout={onLogout} />}
                           </Tab.Screen>
-                        </Tab.Navigator>
-                      </NavigationContainer>
-                      </RewardsProvider>
-                    </ReviewsProvider>
-                  </ProfileProvider>
-                </SearchProvider>
-              </MessagingProvider>
-            </NotificationsProvider>
-          </PaymentProvider>
-        </CreditsProvider>
-      </SessionsProvider>
-    </BookingsProvider>
+        </Tab.Navigator>
+      </NavigationContainer>
+
+      {/* Global Toast */}
+      <Toast
+        visible={toast.visible}
+        message={toast.message}
+        type={toast.type}
+        duration={toast.duration}
+        onHide={hideToast}
+      />
+    </>
+  );
+}
+
+export default function AdminMainApp({ onLogout }) {
+  return (
+    <ToastProvider>
+      <BookingsProvider>
+        <SessionsProvider>
+          <CreditsProvider>
+            <PaymentProvider>
+              <NotificationsProvider>
+                <MessagingProvider>
+                  <SearchProvider>
+                    <ProfileProvider>
+                      <ReviewsProvider>
+                        <RewardsProvider>
+                          <AdminMainAppContent onLogout={onLogout} />
+                        </RewardsProvider>
+                      </ReviewsProvider>
+                    </ProfileProvider>
+                  </SearchProvider>
+                </MessagingProvider>
+              </NotificationsProvider>
+            </PaymentProvider>
+          </CreditsProvider>
+        </SessionsProvider>
+      </BookingsProvider>
+    </ToastProvider>
   );
 }
 
