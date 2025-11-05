@@ -1,21 +1,59 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, TextInput, TouchableOpacity, Image, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { StyleSheet, Text, View, TextInput, TouchableOpacity, Image, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { isValidEmail, isValidName, validatePassword, getPasswordStrength } from './utils/validation';
 
 export default function SignUpScreen({ onBackPress, onSignUpSuccess }) {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [errors, setErrors] = useState({});
+  const [touched, setTouched] = useState({});
 
   const handleSignUp = () => {
-    // We'll add real sign up logic later
+    const newErrors = {};
+
+    // Validate full name
+    if (!isValidName(fullName)) {
+      newErrors.fullName = 'Please enter your full name (at least 2 characters)';
+    }
+
+    // Validate email
+    if (!isValidEmail(email)) {
+      newErrors.email = 'Please enter a valid email address';
+    }
+
+    // Validate password
+    const passwordValidation = validatePassword(password);
+    if (!passwordValidation.isValid) {
+      newErrors.password = passwordValidation.errors[0];
+    }
+
+    // Validate confirm password
+    if (password !== confirmPassword) {
+      newErrors.confirmPassword = 'Passwords do not match';
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      setTouched({ fullName: true, email: true, password: true, confirmPassword: true });
+      Alert.alert('Validation Error', Object.values(newErrors)[0]);
+      return;
+    }
+
+    // If validation passes
     console.log('Sign up pressed:', email);
-    // For now, just show success
     if (onSignUpSuccess) {
       onSignUpSuccess();
     }
   };
+
+  const handleBlur = (field) => {
+    setTouched({ ...touched, [field]: true });
+  };
+
+  const passwordStrength = password.length > 0 ? getPasswordStrength(password) : null;
 
   return (
     <KeyboardAvoidingView 
@@ -52,42 +90,84 @@ export default function SignUpScreen({ onBackPress, onSignUpSuccess }) {
 
           {/* Input Fields */}
           <View style={styles.inputContainer}>
-            <TextInput
-              style={styles.input}
-              placeholder="Full Name"
-              placeholderTextColor="#666"
-              value={fullName}
-              onChangeText={setFullName}
-              autoCapitalize="words"
-            />
+            <View>
+              <TextInput
+                style={[styles.input, touched.fullName && errors.fullName && styles.inputError]}
+                placeholder="Full Name"
+                placeholderTextColor="#666"
+                value={fullName}
+                onChangeText={setFullName}
+                onBlur={() => handleBlur('fullName')}
+                autoCapitalize="words"
+              />
+              {touched.fullName && errors.fullName && (
+                <Text style={styles.errorText}>{errors.fullName}</Text>
+              )}
+            </View>
 
-            <TextInput
-              style={styles.input}
-              placeholder="Email"
-              placeholderTextColor="#666"
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
+            <View>
+              <TextInput
+                style={[styles.input, touched.email && errors.email && styles.inputError]}
+                placeholder="Email"
+                placeholderTextColor="#666"
+                value={email}
+                onChangeText={setEmail}
+                onBlur={() => handleBlur('email')}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+              {touched.email && errors.email && (
+                <Text style={styles.errorText}>{errors.email}</Text>
+              )}
+            </View>
 
-            <TextInput
-              style={styles.input}
-              placeholder="Password"
-              placeholderTextColor="#666"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-            />
+            <View>
+              <TextInput
+                style={[styles.input, touched.password && errors.password && styles.inputError]}
+                placeholder="Password"
+                placeholderTextColor="#666"
+                value={password}
+                onChangeText={setPassword}
+                onBlur={() => handleBlur('password')}
+                secureTextEntry
+              />
+              {passwordStrength && (
+                <View style={styles.passwordStrengthContainer}>
+                  <View style={styles.passwordStrengthBar}>
+                    <View
+                      style={[
+                        styles.passwordStrengthFill,
+                        {
+                          width: passwordStrength.level === 'weak' ? '33%' : passwordStrength.level === 'medium' ? '66%' : '100%',
+                          backgroundColor: passwordStrength.color,
+                        },
+                      ]}
+                    />
+                  </View>
+                  <Text style={[styles.passwordStrengthText, { color: passwordStrength.color }]}>
+                    {passwordStrength.label}
+                  </Text>
+                </View>
+              )}
+              {touched.password && errors.password && (
+                <Text style={styles.errorText}>{errors.password}</Text>
+              )}
+            </View>
 
-            <TextInput
-              style={styles.input}
-              placeholder="Confirm Password"
-              placeholderTextColor="#666"
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              secureTextEntry
-            />
+            <View>
+              <TextInput
+                style={[styles.input, touched.confirmPassword && errors.confirmPassword && styles.inputError]}
+                placeholder="Confirm Password"
+                placeholderTextColor="#666"
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                onBlur={() => handleBlur('confirmPassword')}
+                secureTextEntry
+              />
+              {touched.confirmPassword && errors.confirmPassword && (
+                <Text style={styles.errorText}>{errors.confirmPassword}</Text>
+              )}
+            </View>
           </View>
 
           {/* Terms */}
@@ -274,5 +354,39 @@ const styles = StyleSheet.create({
     color: '#EC4899',
     fontSize: 14,
     fontWeight: '700',
+  },
+  inputError: {
+    borderColor: '#EF4444',
+    borderWidth: 2,
+  },
+  errorText: {
+    color: '#EF4444',
+    fontSize: 12,
+    marginTop: 4,
+    marginBottom: 8,
+    marginLeft: 4,
+  },
+  passwordStrengthContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  passwordStrengthBar: {
+    flex: 1,
+    height: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 2,
+    marginRight: 8,
+    overflow: 'hidden',
+  },
+  passwordStrengthFill: {
+    height: '100%',
+    borderRadius: 2,
+  },
+  passwordStrengthText: {
+    fontSize: 12,
+    fontWeight: '700',
+    width: 60,
   },
 });
