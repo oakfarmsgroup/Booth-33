@@ -767,6 +767,27 @@ export default function HomeScreen() {
               <SkeletonPost />
               <SkeletonPost />
             </>
+          ) : combinedFeed.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyStateIcon}>🎵</Text>
+              <Text style={styles.emptyStateTitle}>No Posts Yet</Text>
+              <Text style={styles.emptyStateText}>
+                Be the first to share! Tap the + button to create a post and share your music with the community.
+              </Text>
+              <TouchableOpacity
+                style={styles.emptyStateButton}
+                onPress={() => setShowCreateModal(true)}
+              >
+                <LinearGradient
+                  colors={['#8B5CF6', '#EC4899']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.emptyStateButtonGradient}
+                >
+                  <Text style={styles.emptyStateButtonText}>Create First Post</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
           ) : (
             <>
               {/* Dynamic Posts from state (includes events) */}
@@ -4546,5 +4567,42 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#F59E0B',
+  },
+  // Empty State
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 80,
+    paddingHorizontal: 40,
+  },
+  emptyStateIcon: {
+    fontSize: 80,
+    marginBottom: 24,
+  },
+  emptyStateTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    marginBottom: 12,
+  },
+  emptyStateText: {
+    fontSize: 16,
+    color: '#888',
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 32,
+  },
+  emptyStateButton: {
+    borderRadius: 28,
+    overflow: 'hidden',
+  },
+  emptyStateButtonGradient: {
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    alignItems: 'center',
+  },
+  emptyStateButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });
