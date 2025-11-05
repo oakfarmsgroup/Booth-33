@@ -15,7 +15,7 @@ export const SessionsProvider = ({ children }) => {
   const [sessions, setSessions] = useState([
     // Mock example session for development
     {
-      id: 1,
+      id: 9001,
       userId: 'user1',
       userName: 'Mike Soundz',
       bookingId: 1,
@@ -25,7 +25,7 @@ export const SessionsProvider = ({ children }) => {
       status: 'delivered', // 'draft' | 'ready_to_deliver' | 'delivered'
       files: [
         {
-          id: 101,
+          id: 9101,
           fileName: 'Final_Mix_Master.mp3',
           fileType: 'audio',
           fileSize: '8.4 MB',
@@ -34,7 +34,7 @@ export const SessionsProvider = ({ children }) => {
           status: 'ready', // 'uploading' | 'processing' | 'ready'
         },
         {
-          id: 102,
+          id: 9102,
           fileName: 'Raw_Vocals_Track.mp3',
           fileType: 'audio',
           fileSize: '12.1 MB',
