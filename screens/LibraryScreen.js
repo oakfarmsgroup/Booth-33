@@ -669,9 +669,8 @@ const styles = StyleSheet.create({
   // Filter Chips
   filterChipsContainer: {
     paddingTop: 2,
-    paddingBottom: 4,
+    paddingBottom: 8,
     flexGrow: 0,
-    maxHeight: 40,
   },
   filterChipsContent: {
     paddingHorizontal: 20,
@@ -679,7 +678,8 @@ const styles = StyleSheet.create({
   },
   filterChip: {
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingVertical: 12,
+    minHeight: 36,
     borderRadius: 999,
     backgroundColor: 'rgba(139, 92, 246, 0.1)',
     borderWidth: 1,
@@ -697,6 +697,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: '#8B5CF6',
+    lineHeight: 18,
   },
   filterChipTextActive: {
     color: '#FFFFFF',
