@@ -347,10 +347,29 @@ export const ReviewsProvider = ({ children }) => {
     return reviews.filter(review => review.flagged);
   };
 
+  // Convenience method for simple review submission
+  const submitReview = (reviewData) => {
+    return addReview({
+      type: 'session',
+      overallRating: reviewData.rating,
+      title: reviewData.sessionName,
+      content: reviewData.comment || 'No additional comments',
+      ratings: {
+        professionalism: reviewData.rating,
+        quality: reviewData.rating,
+        communication: reviewData.rating,
+        value: reviewData.rating,
+        punctuality: reviewData.rating,
+      },
+      ...reviewData,
+    });
+  };
+
   const value = {
     reviews,
     pendingReviews,
     addReview,
+    submitReview,
     getReviewsForUser,
     getReviewsByUser,
     getAverageRating,
