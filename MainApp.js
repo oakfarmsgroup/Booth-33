@@ -8,6 +8,7 @@ import LibraryScreen from './screens/LibraryScreen';
 import ProfileScreen from './screens/ProfileScreen';
 import { AudioProvider } from './contexts/AudioContext';
 import { BookingsProvider } from './contexts/BookingsContext';
+import { SessionsProvider } from './contexts/SessionsContext';
 import { CreditsProvider } from './contexts/CreditsContext';
 import { PaymentProvider } from './contexts/PaymentContext';
 import { NotificationsProvider } from './contexts/NotificationsContext';
@@ -26,16 +27,17 @@ export default function MainApp({ onLogout }) {
   return (
     <AudioProvider>
       <BookingsProvider>
-        <CreditsProvider>
-          <PaymentProvider>
-            <SMSProvider>
-              <NotificationsProvider>
-                <MessagingProvider>
-                  <SearchProvider>
-                    <ProfileProvider>
-                      <ReviewsProvider>
-                        <RewardsProvider>
-                          <TierProvider>
+        <SessionsProvider>
+          <CreditsProvider>
+            <PaymentProvider>
+              <SMSProvider>
+                <NotificationsProvider>
+                  <MessagingProvider>
+                    <SearchProvider>
+                      <ProfileProvider>
+                        <ReviewsProvider>
+                          <RewardsProvider>
+                            <TierProvider>
                           <NavigationContainer independent={true}>
                           <View style={{ flex: 1 }}>
                             <Tab.Navigator
@@ -88,16 +90,17 @@ export default function MainApp({ onLogout }) {
                             <MiniPlayer />
                           </View>
                           </NavigationContainer>
-                        </TierProvider>
-                      </RewardsProvider>
-                    </ReviewsProvider>
-                  </ProfileProvider>
-                </SearchProvider>
-              </MessagingProvider>
-            </NotificationsProvider>
-          </SMSProvider>
-          </PaymentProvider>
-        </CreditsProvider>
+                            </TierProvider>
+                          </RewardsProvider>
+                        </ReviewsProvider>
+                      </ProfileProvider>
+                    </SearchProvider>
+                  </MessagingProvider>
+                </NotificationsProvider>
+              </SMSProvider>
+            </PaymentProvider>
+          </CreditsProvider>
+        </SessionsProvider>
       </BookingsProvider>
     </AudioProvider>
   );
