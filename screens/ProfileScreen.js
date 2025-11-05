@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
-import { StyleSheet, Text, View, Image, TouchableOpacity, ScrollView, Modal, TextInput, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, Text, View, Image, TouchableOpacity, ScrollView, Modal, TextInput, Alert, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Vibration } from 'react-native';
 import { useCredits } from '../contexts/CreditsContext';
 import { usePayment } from '../contexts/PaymentContext';
 import { useTier } from '../contexts/TierContext';
 import { darkenColor } from '../data/tierSystem';
+import { getUserProfile, updateUserProfile, uploadAvatar, getUserStats } from '../services/profileService';
+import { getCurrentUser, signOut } from '../config/supabase';
 
 export default function ProfileScreen({ onLogout }) {
   const { credits, getTransactionHistory, getTotalGranted, getTotalUsed, isMonthlyBonusAvailable, grantMonthlyBonus, getDaysUntilNextBonus } = useCredits();
@@ -19,23 +21,17 @@ export default function ProfileScreen({ onLogout }) {
   const [showAddCardModal, setShowAddCardModal] = useState(false);
   const [showPaymentHistoryModal, setShowPaymentHistoryModal] = useState(false);
   const [showTierModal, setShowTierModal] = useState(false);
-  
-  // User profile data (will come from backend later)
-  const [profile, setProfile] = useState({
-    name: 'Alex Rivera',
-    username: 'alexrivera',
-    bio: 'Music producer & content creator\n📍 Los Angeles, CA\n🎵 Making beats & vibes',
-    postsCount: 12,
-    followersCount: 847,
-    followingCount: 234,
-    sessionsCount: 8,
-  });
+
+  // User profile data from Supabase
+  const [profile, setProfile] = useState(null);
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [currentUserId, setCurrentUserId] = useState(null);
 
   // Edit form state
   const [editForm, setEditForm] = useState({
-    name: profile.name,
-    username: profile.username,
-    bio: profile.bio,
+    name: '',
+    username: '',
+    bio: '',
   });
 
   // Settings state
@@ -55,15 +51,95 @@ export default function ProfileScreen({ onLogout }) {
     cvv: '',
   });
 
-  const handleSaveProfile = () => {
-    setProfile({
-      ...profile,
-      name: editForm.name,
-      username: editForm.username,
-      bio: editForm.bio,
-    });
-    setShowEditModal(false);
-    Alert.alert('Success!', 'Profile updated successfully');
+  // Load profile on mount
+  useEffect(() => {
+    loadProfile();
+  }, []);
+
+  // Update edit form when profile loads
+  useEffect(() => {
+    if (profile) {
+      setEditForm({
+        name: profile.name || '',
+        username: profile.username || '',
+        bio: profile.bio || '',
+      });
+    }
+  }, [profile]);
+
+  const loadProfile = async () => {
+    setProfileLoading(true);
+
+    try {
+      const user = await getCurrentUser();
+      if (!user) {
+        Alert.alert('Error', 'Please sign in to view your profile');
+        setProfileLoading(false);
+        return;
+      }
+
+      setCurrentUserId(user.id);
+
+      // Get profile data
+      const profileResult = await getUserProfile(user.id);
+
+      if (profileResult.success && profileResult.data) {
+        // Get user stats (posts, bookings, etc.)
+        const statsResult = await getUserStats(user.id);
+
+        setProfile({
+          id: profileResult.data.id,
+          name: profileResult.data.full_name || 'User',
+          username: profileResult.data.username || 'user',
+          bio: profileResult.data.bio || '',
+          avatar: profileResult.data.avatar_url,
+          verified: profileResult.data.verified || false,
+          postsCount: statsResult.success ? statsResult.data.postsCount : 0,
+          followersCount: statsResult.success ? statsResult.data.followersCount : 0,
+          followingCount: statsResult.success ? statsResult.data.followingCount : 0,
+          sessionsCount: statsResult.success ? statsResult.data.bookingsCount : 0,
+        });
+      } else {
+        Alert.alert('Error', profileResult.error || 'Failed to load profile');
+      }
+    } catch (error) {
+      console.error('Load profile error:', error);
+      Alert.alert('Error', 'An unexpected error occurred');
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    if (!currentUserId) {
+      Alert.alert('Error', 'Please sign in to update your profile');
+      return;
+    }
+
+    try {
+      const result = await updateUserProfile(currentUserId, {
+        fullName: editForm.name,
+        username: editForm.username,
+        bio: editForm.bio,
+      });
+
+      if (result.success) {
+        // Update local state
+        setProfile({
+          ...profile,
+          name: editForm.name,
+          username: editForm.username,
+          bio: editForm.bio,
+        });
+        setShowEditModal(false);
+        Alert.alert('Success!', 'Profile updated successfully');
+      } else {
+        Alert.alert('Error', result.error || 'Failed to update profile');
+      }
+    } catch (error) {
+      console.error('Update profile error:', error);
+      Alert.alert('Error', 'An unexpected error occurred');
+    }
   };
 
   const handleChangeAvatar = () => {
@@ -71,20 +147,26 @@ export default function ProfileScreen({ onLogout }) {
     Alert.alert('Change Avatar', 'Image picker will open here to select a new profile photo');
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     Alert.alert(
       'Logout',
       'Are you sure you want to logout?',
       [
         { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Logout', 
+        {
+          text: 'Logout',
           style: 'destructive',
-          onPress: () => {
-            if (onLogout) {
-              onLogout(); // Call the logout function passed from App.js
-            } else {
-              Alert.alert('Logged Out', 'You have been logged out');
+          onPress: async () => {
+            try {
+              await signOut();
+              if (onLogout) {
+                onLogout(); // Call the logout function passed from App.js
+              } else {
+                Alert.alert('Logged Out', 'You have been logged out');
+              }
+            } catch (error) {
+              console.error('Logout error:', error);
+              Alert.alert('Error', 'Failed to logout. Please try again.');
             }
           },
         },
@@ -192,6 +274,38 @@ export default function ProfileScreen({ onLogout }) {
     }
   };
 
+  // Show loading state
+  if (profileLoading) {
+    return (
+      <View style={styles.container}>
+        <LinearGradient
+          colors={['#0F0F0F', '#1A0F2E', '#0F0F0F']}
+          style={[styles.gradient, styles.centered]}
+        >
+          <ActivityIndicator size="large" color="#8B5CF6" />
+          <Text style={styles.loadingText}>Loading profile...</Text>
+        </LinearGradient>
+      </View>
+    );
+  }
+
+  // Show error if profile failed to load
+  if (!profile) {
+    return (
+      <View style={styles.container}>
+        <LinearGradient
+          colors={['#0F0F0F', '#1A0F2E', '#0F0F0F']}
+          style={[styles.gradient, styles.centered]}
+        >
+          <Text style={styles.errorText}>Failed to load profile</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={loadProfile}>
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+        </LinearGradient>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <LinearGradient
@@ -214,7 +328,7 @@ export default function ProfileScreen({ onLogout }) {
               <View style={styles.avatarGlow}>
                 <View style={styles.avatarContainer}>
                   <Image
-                    source={require('../assets/images/Artist.png')}
+                    source={profile.avatar ? { uri: profile.avatar } : require('../assets/images/Artist.png')}
                     style={styles.avatar}
                     resizeMode="cover"
                   />
@@ -225,7 +339,10 @@ export default function ProfileScreen({ onLogout }) {
               </View>
             </TouchableOpacity>
 
-            <Text style={styles.name}>{profile.name}</Text>
+            <View style={styles.nameContainer}>
+              <Text style={styles.name}>{profile.name}</Text>
+              {profile.verified && <Text style={styles.verifiedBadge}>✓</Text>}
+            </View>
             <Text style={styles.username}>@{profile.username}</Text>
             
             {/* Stats */}
@@ -1142,6 +1259,45 @@ const styles = StyleSheet.create({
   },
   gradient: {
     flex: 1,
+  },
+  centered: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    color: '#8B5CF6',
+    fontSize: 16,
+    fontWeight: '600',
+    marginTop: 16,
+  },
+  errorText: {
+    color: '#EF4444',
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  retryButton: {
+    backgroundColor: 'rgba(139, 92, 246, 0.2)',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#8B5CF6',
+  },
+  retryButtonText: {
+    color: '#8B5CF6',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  nameContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  verifiedBadge: {
+    fontSize: 18,
+    color: '#8B5CF6',
   },
   header: {
     flexDirection: 'row',
