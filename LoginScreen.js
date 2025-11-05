@@ -1,16 +1,42 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, TextInput, TouchableOpacity, Image, KeyboardAvoidingView, Platform } from 'react-native';
+import { StyleSheet, Text, View, TextInput, TouchableOpacity, Image, KeyboardAvoidingView, Platform, Alert, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { signIn } from './services/authService';
 
 export default function LoginScreen({ onBackPress, onSignUpPress, onLoginSuccess, onForgotPasswordPress }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState({});
 
-  const handleLogin = () => {
-    // We'll add real login logic later
-    console.log('Login pressed:', email);
-    // For now, just go to main app
-    onLoginSuccess();
+  const handleLogin = async () => {
+    // Basic validation
+    if (!email || !password) {
+      Alert.alert('Error', 'Please enter both email and password');
+      return;
+    }
+
+    setLoading(true);
+    setErrors({});
+
+    try {
+      const result = await signIn(email.trim(), password);
+
+      if (result.success) {
+        // Login successful
+        console.log('Login successful:', result.data.user);
+        onLoginSuccess();
+      } else {
+        // Login failed
+        Alert.alert('Login Failed', result.error || 'Invalid email or password');
+        setErrors({ general: result.error });
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -70,14 +96,23 @@ export default function LoginScreen({ onBackPress, onSignUpPress, onLoginSuccess
         </View>
 
         {/* Login Button */}
-        <TouchableOpacity style={styles.button} onPress={handleLogin} activeOpacity={0.8}>
+        <TouchableOpacity
+          style={styles.button}
+          onPress={handleLogin}
+          activeOpacity={0.8}
+          disabled={loading}
+        >
           <LinearGradient
-            colors={['#8B5CF6', '#EC4899']}
+            colors={loading ? ['#666', '#444'] : ['#8B5CF6', '#EC4899']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={styles.buttonGradient}
           >
-            <Text style={styles.buttonText}>SIGN IN</Text>
+            {loading ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={styles.buttonText}>SIGN IN</Text>
+            )}
           </LinearGradient>
         </TouchableOpacity>
 

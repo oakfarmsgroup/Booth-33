@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, TextInput, TouchableOpacity, Image, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
+import { StyleSheet, Text, View, TextInput, TouchableOpacity, Image, KeyboardAvoidingView, Platform, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { isValidEmail, isValidName, validatePassword, getPasswordStrength } from './utils/validation';
+import { signUp } from './services/authService';
 
 export default function SignUpScreen({ onBackPress, onSignUpSuccess }) {
   const [fullName, setFullName] = useState('');
@@ -10,8 +11,9 @@ export default function SignUpScreen({ onBackPress, onSignUpSuccess }) {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
+  const [loading, setLoading] = useState(false);
 
-  const handleSignUp = () => {
+  const handleSignUp = async () => {
     const newErrors = {};
 
     // Validate full name
@@ -42,10 +44,40 @@ export default function SignUpScreen({ onBackPress, onSignUpSuccess }) {
       return;
     }
 
-    // If validation passes
-    console.log('Sign up pressed:', email);
-    if (onSignUpSuccess) {
-      onSignUpSuccess();
+    // If validation passes, create account
+    setLoading(true);
+    setErrors({});
+
+    try {
+      const result = await signUp(email.trim(), password, fullName.trim());
+
+      if (result.success) {
+        // Sign up successful
+        console.log('Sign up successful:', result.data.user);
+        Alert.alert(
+          'Account Created!',
+          'Please check your email to verify your account.',
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                if (onSignUpSuccess) {
+                  onSignUpSuccess();
+                }
+              },
+            },
+          ]
+        );
+      } else {
+        // Sign up failed
+        Alert.alert('Sign Up Failed', result.error || 'Unable to create account');
+        setErrors({ general: result.error });
+      }
+    } catch (error) {
+      console.error('Sign up error:', error);
+      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -179,14 +211,23 @@ export default function SignUpScreen({ onBackPress, onSignUpSuccess }) {
           </Text>
 
           {/* Sign Up Button */}
-          <TouchableOpacity style={styles.button} onPress={handleSignUp} activeOpacity={0.8}>
+          <TouchableOpacity
+            style={styles.button}
+            onPress={handleSignUp}
+            activeOpacity={0.8}
+            disabled={loading}
+          >
             <LinearGradient
-              colors={['#8B5CF6', '#EC4899']}
+              colors={loading ? ['#666', '#444'] : ['#8B5CF6', '#EC4899']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.buttonGradient}
             >
-              <Text style={styles.buttonText}>CREATE ACCOUNT</Text>
+              {loading ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text style={styles.buttonText}>CREATE ACCOUNT</Text>
+              )}
             </LinearGradient>
           </TouchableOpacity>
 

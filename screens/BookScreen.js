@@ -9,6 +9,8 @@ import { useNotifications } from '../contexts/NotificationsContext';
 import { useTier } from '../contexts/TierContext';
 import { getTierDiscount } from '../data/tierSystem';
 import { useSMS } from '../contexts/SMSContext';
+import { createBooking, checkAvailability } from '../services/bookingsService';
+import { getCurrentUser } from '../config/supabase';
 
 export default function BookScreen() {
   const { addBooking, isTimeSlotBooked, getUpcomingBookings, getPastBookings, cancelBooking, getEventForTimeSlot, events, rsvpToEvent, unrsvpFromEvent, isUserRSVPd } = useBookings();
@@ -152,17 +154,61 @@ export default function BookScreen() {
     setIsProcessingPayment(true);
 
     try {
-      // Create booking
-      const booking = {
+      // Check if user is authenticated
+      const currentUser = await getCurrentUser();
+      if (!currentUser) {
+        Alert.alert('Authentication Required', 'Please sign in to book a session');
+        setIsProcessingPayment(false);
+        return;
+      }
+
+      // Check availability before creating booking
+      const availabilityCheck = await checkAvailability(
+        dates[selectedDate].toISOString().split('T')[0],
+        selectedTimeSlot,
+        selectedDuration
+      );
+
+      if (!availabilityCheck.success || !availabilityCheck.available) {
+        Alert.alert(
+          'Time Slot Unavailable',
+          'This time slot is no longer available. Please select a different time.',
+          [{ text: 'OK' }]
+        );
+        setIsProcessingPayment(false);
+        return;
+      }
+
+      // Create booking in Supabase
+      const bookingData = {
+        userId: currentUser.id,
+        sessionType: selectedType,
+        date: dates[selectedDate].toISOString().split('T')[0], // YYYY-MM-DD format
+        time: selectedTimeSlot,
+        duration: selectedDuration,
+        price: fullPrice,
+        notes: bookingNotes,
+      };
+
+      const bookingResult = await createBooking(bookingData);
+
+      if (!bookingResult.success) {
+        Alert.alert('Booking Failed', bookingResult.error || 'Unable to create booking');
+        setIsProcessingPayment(false);
+        return;
+      }
+
+      const newBooking = bookingResult.data;
+
+      // Also add to local context for immediate UI update
+      addBooking({
         type: selectedType,
         date: dates[selectedDate],
         timeSlot: selectedTimeSlot,
         duration: selectedDuration,
         price: fullPrice,
         notes: bookingNotes,
-      };
-
-      const newBooking = addBooking(booking);
+      });
 
       // Apply credits if available AND meets minimum requirement
       if (creditCalc.creditsToUse > 0 && canUseCredits()) {
