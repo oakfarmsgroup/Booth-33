@@ -14,7 +14,14 @@
       "Bash(git push:*)",
       "Bash(git check-ignore:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(cat:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(taskkill:*)",
+      "Bash(start notepad supabase/setup_clean.sql)",
+      "Bash(curl:*)",
+      "Bash(start notepad supabase/fix_schema.sql)"
     ],
     "deny": [],
     "ask": []
