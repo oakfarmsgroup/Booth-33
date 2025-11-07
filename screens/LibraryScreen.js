@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Modal, Share, Alert, TextInput } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Modal, Share, Alert, TextInput, ActivityIndicator, RefreshControl } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAudio } from '../contexts/AudioContext';
 import { useSessions } from '../contexts/SessionsContext';
+import { getUserSessions } from '../services/sessionsService';
 
 export default function LibraryScreen() {
   const { currentTrack, isPlaying, playTrack, togglePlayPause, addToQueue, clearQueue, playFromQueue, isInQueue, toggleTrackInQueue, toggleFavorite, isFavorite } = useAudio();
@@ -14,6 +15,9 @@ export default function LibraryScreen() {
   const [editingSessionId, setEditingSessionId] = useState(null);
   const [sessionNames, setSessionNames] = useState({});
   const [filterType, setFilterType] = useState('all'); // 'all', 'favorites', 'music', 'podcast', 'upload'
+  const [dbSessions, setDbSessions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Get delivered sessions from admin and transform them to library format
   const adminSessions = getAllDeliveredSessions().map(session => ({
@@ -85,8 +89,36 @@ export default function LibraryScreen() {
     },
   ];
 
-  // Combine admin-delivered sessions with mock sessions
-  const sessions = [...adminSessions, ...mockSessions];
+  // Load sessions from database on mount
+  useEffect(() => {
+    loadSessions();
+  }, []);
+
+  const loadSessions = async () => {
+    setLoading(true);
+    try {
+      const result = await getUserSessions();
+      if (result.success) {
+        setDbSessions(result.data);
+      } else {
+        console.error('Failed to load sessions:', result.error);
+      }
+    } catch (error) {
+      console.error('Error loading sessions:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadSessions();
+    setRefreshing(false);
+  };
+
+  // Combine database sessions, admin-delivered sessions, and mock sessions
+  // (Mock sessions kept for demo purposes until database is fully populated)
+  const sessions = [...dbSessions, ...adminSessions, ...mockSessions];
 
   // Auto-collapse sessions after the 3rd one on initial load
   React.useEffect(() => {
