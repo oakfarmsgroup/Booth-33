@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Modal, TextInput, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -7,6 +7,7 @@ import { useCredits } from '../contexts/CreditsContext';
 import { usePayment } from '../contexts/PaymentContext';
 import { useRewards } from '../contexts/RewardsContext';
 import { TIERS } from '../data/tierSystem';
+import { getAllBookings, getBookingStats } from '../services/bookingsService';
 
 export default function AdminOverviewScreen() {
   const navigation = useNavigation();
@@ -75,27 +76,64 @@ export default function AdminOverviewScreen() {
     ],
   };
 
-  // Mock data (will come from backend later)
-  const stats = {
-    todayBookings: 5,
-    weekBookings: 23,
-    monthBookings: 87,
-    todayRevenue: revenueStats.monthlyRevenue, // Using monthly revenue as mock for today
+  // State for booking stats and recent bookings
+  const [stats, setStats] = useState({
+    todayBookings: 0,
+    weekBookings: 0,
+    monthBookings: 0,
+    todayRevenue: revenueStats.monthlyRevenue,
     weekRevenue: revenueStats.monthlyRevenue,
     monthRevenue: revenueStats.netRevenue,
     totalRevenue: revenueStats.totalRevenue,
     totalRefunded: revenueStats.totalRefunded,
     totalTransactions: revenueStats.totalTransactions,
-    activeUsers: 142,
-    completionRate: 94,
-  };
+    activeUsers: 0,
+    completionRate: 0,
+  });
 
-  const recentBookings = [
-    { id: 1, user: 'Mike Soundz', type: 'music', date: 'Today', time: '2:00 PM', status: 'pending' },
-    { id: 2, user: 'Sarah J', type: 'podcast', date: 'Today', time: '4:00 PM', status: 'confirmed' },
-    { id: 3, user: 'Jay Beats', type: 'music', date: 'Tomorrow', time: '10:00 AM', status: 'pending' },
-    { id: 4, user: 'Lisa Chen', type: 'podcast', date: 'Tomorrow', time: '3:00 PM', status: 'confirmed' },
-  ];
+  const [recentBookings, setRecentBookings] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Load booking stats and recent bookings
+  useEffect(() => {
+    loadDashboardData();
+  }, []);
+
+  const loadDashboardData = async () => {
+    setLoading(true);
+    try {
+      // Get booking statistics
+      const statsResult = await getBookingStats();
+      if (statsResult.success) {
+        setStats(prev => ({
+          ...prev,
+          todayBookings: statsResult.data.todayCount || 0,
+          weekBookings: statsResult.data.weekCount || 0,
+          monthBookings: statsResult.data.monthCount || 0,
+          activeUsers: statsResult.data.totalUsers || 0,
+          completionRate: statsResult.data.completionRate || 0,
+        }));
+      }
+
+      // Get recent bookings (last 5)
+      const bookingsResult = await getAllBookings();
+      if (bookingsResult.success) {
+        const recent = bookingsResult.data.slice(0, 5).map(booking => ({
+          id: booking.id,
+          user: booking.profiles?.full_name || booking.profiles?.username || 'Unknown',
+          type: booking.session_type,
+          date: new Date(booking.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+          time: booking.time,
+          status: booking.status
+        }));
+        setRecentBookings(recent);
+      }
+    } catch (error) {
+      console.error('Error loading dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleGrantCredits = () => {
     const amount = parseFloat(creditAmount);
