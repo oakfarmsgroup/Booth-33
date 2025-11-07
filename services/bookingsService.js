@@ -218,6 +218,87 @@ export const rescheduleBooking = async (bookingId, newDate, newTime) => {
   }
 };
 
+// Subscribe to all booking changes (for admin dashboard)
+export const subscribeToBookingChanges = async (callback) => {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      console.error('No user found for booking subscription');
+      return null;
+    }
+
+    const subscription = supabase
+      .channel('bookings-all')
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // Listen to INSERT, UPDATE, DELETE
+          schema: 'api',
+          table: 'bookings',
+        },
+        (payload) => {
+          console.log('Booking change detected:', payload.eventType, payload.new || payload.old);
+          callback(payload);
+        }
+      )
+      .subscribe();
+
+    return subscription;
+  } catch (error) {
+    console.error('Error subscribing to booking changes:', error);
+    return null;
+  }
+};
+
+// Subscribe to user's own bookings
+export const subscribeToUserBookings = async (callback) => {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      console.error('No user found for user booking subscription');
+      return null;
+    }
+
+    const subscription = supabase
+      .channel('user-bookings')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'api',
+          table: 'bookings',
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log('User booking change:', payload.eventType, payload.new || payload.old);
+          callback(payload);
+        }
+      )
+      .subscribe();
+
+    return subscription;
+  } catch (error) {
+    console.error('Error subscribing to user bookings:', error);
+    return null;
+  }
+};
+
+// Unsubscribe from booking changes
+export const unsubscribeFromBookings = (subscription) => {
+  if (subscription && typeof subscription.unsubscribe === 'function') {
+    subscription.unsubscribe();
+  } else if (subscription && subscription.then) {
+    // Handle promise-based subscriptions
+    subscription.then(sub => {
+      if (sub && typeof sub.unsubscribe === 'function') {
+        sub.unsubscribe();
+      }
+    });
+  }
+};
+
 export default {
   createBooking,
   getUserBookings,
@@ -228,4 +309,7 @@ export default {
   checkAvailability,
   getBookingStats,
   rescheduleBooking,
+  subscribeToBookingChanges,
+  subscribeToUserBookings,
+  unsubscribeFromBookings,
 };

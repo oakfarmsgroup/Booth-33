@@ -185,27 +185,37 @@ export const getUnreadCount = async () => {
 };
 
 // Subscribe to new messages (real-time)
-export const subscribeToMessages = (callback) => {
-  const { data: { user } } = supabase.auth.getUser();
+export const subscribeToMessages = async (callback) => {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
 
-  const subscription = supabase
-    .channel('messages')
-    .on(
-      'postgres_changes',
-      {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'messages',
-        filter: `recipient_id=eq.${user.id}`,
-      },
-      (payload) => {
-        console.log('New message received:', payload.new);
-        callback(payload.new);
-      }
-    )
-    .subscribe();
+    if (!user) {
+      console.error('No user found for message subscription');
+      return null;
+    }
 
-  return subscription;
+    const subscription = supabase
+      .channel('messages')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'api',
+          table: 'messages',
+          filter: `recipient_id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log('New message received:', payload.new);
+          callback(payload.new);
+        }
+      )
+      .subscribe();
+
+    return subscription;
+  } catch (error) {
+    console.error('Error subscribing to messages:', error);
+    return null;
+  }
 };
 
 // Unsubscribe from messages

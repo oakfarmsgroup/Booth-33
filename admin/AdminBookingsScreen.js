@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useBookings } from '../contexts/BookingsContext';
 import { useSessions } from '../contexts/SessionsContext';
-import { getAllBookings, updateBookingStatus } from '../services/bookingsService';
+import { getAllBookings, updateBookingStatus, subscribeToBookingChanges, unsubscribeFromBookings } from '../services/bookingsService';
 
 export default function AdminBookingsScreen() {
   const { completeBooking } = useBookings();
@@ -13,10 +13,26 @@ export default function AdminBookingsScreen() {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [bookingSubscription, setBookingSubscription] = useState(null);
 
-  // Load bookings from database
+  // Load bookings from database and subscribe to changes
   useEffect(() => {
     loadBookings();
+
+    // Subscribe to real-time booking changes
+    const setupSubscription = async () => {
+      const subscription = await subscribeToBookingChanges(handleBookingChange);
+      setBookingSubscription(subscription);
+    };
+
+    setupSubscription();
+
+    // Cleanup subscription on unmount
+    return () => {
+      if (bookingSubscription) {
+        unsubscribeFromBookings(bookingSubscription);
+      }
+    };
   }, []);
 
   const loadBookings = async () => {
@@ -56,6 +72,15 @@ export default function AdminBookingsScreen() {
     setRefreshing(true);
     await loadBookings();
     setRefreshing(false);
+  };
+
+  // Handle real-time booking changes
+  const handleBookingChange = (payload) => {
+    console.log('Real-time booking change:', payload.eventType);
+
+    // For now, just reload all bookings
+    // In the future, we could optimize by updating individual bookings
+    loadBookings();
   };
 
   const handleApprove = (booking) => {
