@@ -6,9 +6,10 @@ import { useCredits } from '../contexts/CreditsContext';
 import { usePayment } from '../contexts/PaymentContext';
 import { useTier } from '../contexts/TierContext';
 import { darkenColor } from '../data/tierSystem';
-import { getUserProfile, updateUserProfile, uploadAvatar, getUserStats } from '../services/profileService';
+import { getUserProfile, updateUserProfile, getUserStats } from '../services/profileService';
 import { getCurrentUser, signOut } from '../config/supabase';
 import { getUserSettings, updateSetting } from '../services/userSettingsService';
+import * as uploadService from '../services/uploadService';
 
 export default function ProfileScreen({ onLogout }) {
   const { credits, getTransactionHistory, getTotalGranted, getTotalUsed, isMonthlyBonusAvailable, grantMonthlyBonus, getDaysUntilNextBonus } = useCredits();
@@ -144,9 +145,61 @@ export default function ProfileScreen({ onLogout }) {
     }
   };
 
-  const handleChangeAvatar = () => {
-    // Will add real image picker later
-    Alert.alert('Change Avatar', 'Image picker will open here to select a new profile photo');
+  const handleChangeAvatar = async () => {
+    Alert.alert(
+      'Change Avatar',
+      'Choose an option',
+      [
+        {
+          text: 'Take Photo',
+          onPress: async () => {
+            const result = await uploadService.takePhoto();
+            if (result.success) {
+              await uploadAvatarImage(result.uri);
+            } else {
+              Alert.alert('Error', result.error);
+            }
+          }
+        },
+        {
+          text: 'Choose from Library',
+          onPress: async () => {
+            const result = await uploadService.pickImage(true, 0.8);
+            if (result.success) {
+              await uploadAvatarImage(result.uri);
+            } else {
+              Alert.alert('Error', result.error);
+            }
+          }
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        }
+      ]
+    );
+  };
+
+  const uploadAvatarImage = async (uri) => {
+    setProfileLoading(true);
+    try {
+      const result = await uploadService.uploadAvatar(uri);
+      if (result.success) {
+        // Update local profile state with new avatar
+        setProfile(prev => ({
+          ...prev,
+          avatar: result.url
+        }));
+        Alert.alert('Success', 'Avatar updated successfully!');
+      } else {
+        Alert.alert('Upload Failed', result.error);
+      }
+    } catch (error) {
+      console.error('Avatar upload error:', error);
+      Alert.alert('Error', 'Failed to upload avatar');
+    } finally {
+      setProfileLoading(false);
+    }
   };
 
   const handleLogout = async () => {
