@@ -27,7 +27,8 @@
       "Bash(psql:*)",
       "Bash(node scripts/migrate-schema.js:*)",
       "Bash(node scripts/fix-api-config.js:*)",
-      "Bash(start notepad:*)"
+      "Bash(start notepad:*)",
+      "Bash(timeout /t 3 /nobreak)"
     ],
     "deny": [],
     "ask": []
