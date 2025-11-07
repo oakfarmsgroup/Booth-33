@@ -14,6 +14,7 @@ import { useTier } from '../contexts/TierContext';
 import { darkenColor } from '../data/tierSystem';
 import { getFeedPosts, createPost, likePost, unlikePost, addComment, getPostComments, uploadAudio, uploadImage } from '../services/postsService';
 import { getCurrentUser } from '../config/supabase';
+import * as uploadService from '../services/uploadService';
 
 // Purple Glowing Loading Spinner Component
 function LoadingSpinner() {
@@ -573,14 +574,23 @@ export default function HomeScreen() {
     });
   }, [combinedFeed, likeAnimations]);
 
-  const handleSelectFile = () => {
-    // Will add real file picker later
-    const mockFile = {
-      name: 'My_New_Track.mp3',
-      duration: '3:24',
-      size: '7.2 MB',
-    };
-    setSelectedFile(mockFile);
+  const handleSelectFile = async () => {
+    try {
+      const result = await uploadService.pickAudio();
+      if (result.success) {
+        setSelectedFile({
+          uri: result.uri,
+          name: result.name,
+          size: `${(result.size / 1024 / 1024).toFixed(1)} MB`,
+          mimeType: result.mimeType
+        });
+      } else if (result.error !== 'Audio picking canceled') {
+        Alert.alert('Error', result.error);
+      }
+    } catch (error) {
+      console.error('Error picking audio:', error);
+      Alert.alert('Error', 'Failed to select audio file');
+    }
   };
 
   const handleCreatePost = async () => {
@@ -602,14 +612,16 @@ export default function HomeScreen() {
         return;
       }
 
-      // Upload audio file if present (placeholder - will need real file upload)
+      // Upload audio file if present
       let audioUrl = null;
       if (postType === 'audio' && selectedFile) {
-        // TODO: Implement real audio file upload
-        // const uploadResult = await uploadAudio(selectedFile.uri, selectedFile.name);
-        // if (uploadResult.success) {
-        //   audioUrl = uploadResult.url;
-        // }
+        const uploadResult = await uploadService.uploadPostAudio(selectedFile.uri, selectedFile.name);
+        if (uploadResult.success) {
+          audioUrl = uploadResult.url;
+        } else {
+          Alert.alert('Upload Failed', uploadResult.error);
+          return;
+        }
       }
 
       // Create post in Supabase
