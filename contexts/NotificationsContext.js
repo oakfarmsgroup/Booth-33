@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import * as notificationsService from '../services/notificationsService';
 
 const NotificationsContext = createContext();
 
@@ -11,6 +12,51 @@ export const useNotifications = () => {
 };
 
 export const NotificationsProvider = ({ children }) => {
+  const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [notificationSubscription, setNotificationSubscription] = useState(null);
+
+  // Load notifications and subscribe to real-time updates
+  useEffect(() => {
+    loadNotifications();
+
+    // Subscribe to real-time notifications
+    const setupSubscription = async () => {
+      const subscription = await notificationsService.subscribeToNotifications(handleNewNotification);
+      setNotificationSubscription(subscription);
+    };
+
+    setupSubscription();
+
+    // Cleanup subscription on unmount
+    return () => {
+      if (notificationSubscription) {
+        notificationsService.unsubscribeFromNotifications(notificationSubscription);
+      }
+    };
+  }, []);
+
+  // Load notifications from database
+  const loadNotifications = async () => {
+    setLoading(true);
+    try {
+      const result = await notificationsService.getUserNotifications();
+      if (result.success) {
+        setNotifications(result.data || []);
+      }
+    } catch (error) {
+      console.error('Error loading notifications:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle real-time notification
+  const handleNewNotification = (newNotification) => {
+    setNotifications(prev => [newNotification, ...prev]);
+  };
+
+  /* Keeping sample data for reference - remove this block
   const [notifications, setNotifications] = useState([
     // Sample notifications
     {
@@ -82,21 +128,21 @@ export const NotificationsProvider = ({ children }) => {
       data: {},
     },
   ]);
+  */
 
-  // Create a notification
-  const createNotification = (type, title, message, data = {}) => {
-    const notification = {
-      id: `notif_${Date.now()}`,
-      type,
-      title,
-      message,
-      timestamp: new Date(),
-      read: false,
-      data,
-    };
-
-    setNotifications([notification, ...notifications]);
-    return notification;
+  // Create a notification in database
+  const createNotification = async (type, title, message, data = {}) => {
+    try {
+      const result = await notificationsService.createNotification(type, title, message, data);
+      if (result.success) {
+        setNotifications(prev => [result.data, ...prev]);
+        return result.data;
+      }
+      return null;
+    } catch (error) {
+      console.error('Error creating notification:', error);
+      return null;
+    }
   };
 
   // Notification type helpers
@@ -221,22 +267,43 @@ export const NotificationsProvider = ({ children }) => {
   };
 
   // Mark notification as read
-  const markAsRead = (notificationId) => {
-    setNotifications(
-      notifications.map((notif) =>
-        notif.id === notificationId ? { ...notif, read: true } : notif
-      )
-    );
+  const markAsRead = async (notificationId) => {
+    try {
+      const result = await notificationsService.markAsRead(notificationId);
+      if (result.success) {
+        setNotifications(prev =>
+          prev.map((notif) =>
+            notif.id === notificationId ? { ...notif, read: true } : notif
+          )
+        );
+      }
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    }
   };
 
   // Mark all as read
-  const markAllAsRead = () => {
-    setNotifications(notifications.map((notif) => ({ ...notif, read: true })));
+  const markAllAsRead = async () => {
+    try {
+      const result = await notificationsService.markAllAsRead();
+      if (result.success) {
+        setNotifications(prev => prev.map((notif) => ({ ...notif, read: true })));
+      }
+    } catch (error) {
+      console.error('Error marking all as read:', error);
+    }
   };
 
   // Delete notification
-  const deleteNotification = (notificationId) => {
-    setNotifications(notifications.filter((notif) => notif.id !== notificationId));
+  const deleteNotification = async (notificationId) => {
+    try {
+      const result = await notificationsService.deleteNotification(notificationId);
+      if (result.success) {
+        setNotifications(prev => prev.filter((notif) => notif.id !== notificationId));
+      }
+    } catch (error) {
+      console.error('Error deleting notification:', error);
+    }
   };
 
   // Clear all notifications
@@ -261,7 +328,9 @@ export const NotificationsProvider = ({ children }) => {
 
   const value = {
     notifications,
+    loading,
     createNotification,
+    loadNotifications, // Allow manual refresh
 
     // Type-specific helpers
     notifyBookingReminder,
