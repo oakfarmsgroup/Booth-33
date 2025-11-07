@@ -1,52 +1,52 @@
--- Create api schema if it doesn't exist
-CREATE SCHEMA IF NOT EXISTS api;
+-- Fix Schema Issues and Create User Profile
+-- Run this in Supabase SQL Editor
 
--- Move tables from public to api schema
-ALTER TABLE IF EXISTS public.profiles SET SCHEMA api;
-ALTER TABLE IF EXISTS public.bookings SET SCHEMA api;
-ALTER TABLE IF EXISTS public.posts SET SCHEMA api;
-ALTER TABLE IF EXISTS public.likes SET SCHEMA api;
-ALTER TABLE IF EXISTS public.comments SET SCHEMA api;
-ALTER TABLE IF EXISTS public.follows SET SCHEMA api;
-ALTER TABLE IF EXISTS public.reviews SET SCHEMA api;
-ALTER TABLE IF EXISTS public.messages SET SCHEMA api;
-ALTER TABLE IF EXISTS public.events SET SCHEMA api;
-ALTER TABLE IF EXISTS public.event_rsvps SET SCHEMA api;
-ALTER TABLE IF EXISTS public.notifications SET SCHEMA api;
+-- Add missing columns to profiles table
+ALTER TABLE api.profiles
+ADD COLUMN IF NOT EXISTS verified BOOLEAN DEFAULT FALSE,
+ADD COLUMN IF NOT EXISTS follower_count INTEGER DEFAULT 0,
+ADD COLUMN IF NOT EXISTS following_count INTEGER DEFAULT 0;
 
--- Update function schema references
-DROP FUNCTION IF EXISTS public.handle_new_user CASCADE;
-CREATE OR REPLACE FUNCTION api.handle_new_user()
-RETURNS TRIGGER AS $$
-BEGIN
-  INSERT INTO api.profiles (id, email, full_name)
-  VALUES (NEW.id, NEW.email, NEW.raw_user_meta_data->>'full_name');
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+-- Create profile for existing user (oakfarmsgroup@gmail.com)
+INSERT INTO api.profiles (id, email, full_name, username, verified, role)
+VALUES (
+  'd95b4727-9aff-49da-a743-d0096ba23672'::uuid,
+  'oakfarmsgroup@gmail.com',
+  'Sabio Beatz',
+  'sabiobeatz',
+  false,
+  'admin'
+)
+ON CONFLICT (id) DO UPDATE SET
+  full_name = EXCLUDED.full_name,
+  username = EXCLUDED.username,
+  role = EXCLUDED.role;
 
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-CREATE TRIGGER on_auth_user_created
-  AFTER INSERT ON auth.users
-  FOR EACH ROW EXECUTE FUNCTION api.handle_new_user();
+-- Create user_settings for this user
+INSERT INTO api.user_settings (user_id)
+VALUES ('d95b4727-9aff-49da-a743-d0096ba23672'::uuid)
+ON CONFLICT (user_id) DO NOTHING;
 
--- Recreate triggers with correct schema
-DROP TRIGGER IF EXISTS update_post_likes ON api.likes;
-CREATE TRIGGER update_post_likes
-  AFTER INSERT OR DELETE ON api.likes
-  FOR EACH ROW EXECUTE FUNCTION api.update_post_likes_count();
+-- Add some sample data for testing
+-- Sample posts
+INSERT INTO api.posts (user_id, content, likes_count, comments_count, created_at)
+VALUES
+  ('d95b4727-9aff-49da-a743-d0096ba23672'::uuid, 'Just finished an amazing recording session! <µ', 5, 2, NOW() - INTERVAL '2 hours'),
+  ('d95b4727-9aff-49da-a743-d0096ba23672'::uuid, 'New track dropping soon! Stay tuned =%', 10, 5, NOW() - INTERVAL '1 day')
+ON CONFLICT DO NOTHING;
 
-DROP TRIGGER IF EXISTS update_post_comments ON api.comments;
-CREATE TRIGGER update_post_comments
-  AFTER INSERT OR DELETE ON api.comments
-  FOR EACH ROW EXECUTE FUNCTION api.update_post_comments_count();
+-- Sample event
+INSERT INTO api.events (name, description, date, time, location, max_attendees, current_attendees, created_by, created_at)
+VALUES
+  ('Open Mic Night', 'Join us for an evening of music and creativity', CURRENT_DATE + INTERVAL '7 days', '19:00', 'Booth 33 Studio', 50, 12, 'd95b4727-9aff-49da-a743-d0096ba23672'::uuid, NOW())
+ON CONFLICT DO NOTHING;
 
-DROP TRIGGER IF EXISTS update_event_attendees ON api.event_rsvps;
-CREATE TRIGGER update_event_attendees
-  AFTER INSERT OR DELETE ON api.event_rsvps
-  FOR EACH ROW EXECUTE FUNCTION api.update_event_attendees_count();
+-- Sample booking
+INSERT INTO api.bookings (user_id, session_type, date, time, duration, price, status, notes, created_at)
+VALUES
+  ('d95b4727-9aff-49da-a743-d0096ba23672'::uuid, 'music', CURRENT_DATE + INTERVAL '3 days', '14:00', 2, 150.00, 'confirmed', 'Need to record vocals', NOW())
+ON CONFLICT DO NOTHING;
 
--- Move functions to api schema
-ALTER FUNCTION IF EXISTS public.update_post_likes_count SET SCHEMA api;
-ALTER FUNCTION IF EXISTS public.update_post_comments_count SET SCHEMA api;
-ALTER FUNCTION IF EXISTS public.update_event_attendees_count SET SCHEMA api;
+COMMENT ON COLUMN api.profiles.verified IS 'Whether the user is a verified artist/creator';
+COMMENT ON COLUMN api.profiles.follower_count IS 'Number of followers (denormalized for performance)';
+COMMENT ON COLUMN api.profiles.following_count IS 'Number of users this user follows';
