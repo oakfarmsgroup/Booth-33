@@ -10,6 +10,9 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 // Create Supabase client
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  db: {
+    schema: 'public',
+  },
   auth: {
     // Store session in AsyncStorage for React Native
     storage: null, // Will be configured with AsyncStorage
