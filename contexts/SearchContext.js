@@ -1,4 +1,6 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import * as searchService from '../services/searchService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const SearchContext = createContext();
 
@@ -11,156 +13,211 @@ export const useSearch = () => {
 };
 
 export const SearchProvider = ({ children }) => {
-  // Sample data for search
-  const [tracks] = useState([
-    { id: 1, title: 'Midnight Vibes', artist: 'Mike Soundz', genre: 'Hip-Hop', plays: 2420 },
-    { id: 2, title: 'Summer Dreams', artist: 'Sarah J', genre: 'Pop', plays: 1850 },
-    { id: 3, title: 'Electric Pulse', artist: 'Jay Beats', genre: 'Electronic', plays: 3200 },
-    { id: 4, title: 'Late Night Session', artist: 'Lisa Chen', genre: 'R&B', plays: 1920 },
-    { id: 5, title: 'City Lights', artist: 'Mike Soundz', genre: 'Hip-Hop', plays: 2100 },
-    { id: 6, title: 'Acoustic Soul', artist: 'Alex Rivera', genre: 'Acoustic', plays: 890 },
-  ]);
-
-  const [users] = useState([
-    { id: 1, name: 'Mike Soundz', username: '@mikesoundz', genre: 'Hip-Hop Producer', followers: 2400 },
-    { id: 2, name: 'Sarah J', username: '@sarahj', genre: 'Pop Artist', followers: 1850 },
-    { id: 3, name: 'Jay Beats', username: '@jaybeats', genre: 'DJ & Producer', followers: 3200 },
-    { id: 4, name: 'Lisa Chen', username: '@lisachen', genre: 'R&B Singer', followers: 1920 },
-    { id: 5, name: 'Alex Rivera', username: '@alexrivera', genre: 'Multi-Instrumentalist', followers: 847 },
-  ]);
-
-  const [events] = useState([
-    { id: 1, name: 'Open Mic Night', type: 'open-mic', date: new Date(2025, 9, 30), attendees: 45 },
-    { id: 2, name: 'Beat Making Workshop', type: 'workshop', date: new Date(2025, 10, 5), attendees: 20 },
-    { id: 3, name: 'Jazz Listening Party', type: 'listening-party', date: new Date(2025, 10, 8), attendees: 30 },
-  ]);
-
-  // Recent searches
-  const [recentSearches, setRecentSearches] = useState([
-    'Mike Soundz',
-    'Hip-Hop beats',
-    'Open Mic',
-  ]);
-
-  // Search query state
+  const [recentSearches, setRecentSearches] = useState([]);
+  const [trendingTracks, setTrendingTracks] = useState([]);
+  const [popularUsers, setPopularUsers] = useState([]);
+  const [upcomingEvents, setUpcomingEvents] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Add to recent searches
-  const addRecentSearch = (query) => {
-    if (!query.trim()) return;
+  // Load recent searches and trending content on mount
+  useEffect(() => {
+    loadRecentSearches();
+    loadTrendingContent();
+  }, []);
 
-    // Remove if already exists
-    const filtered = recentSearches.filter(s => s.toLowerCase() !== query.toLowerCase());
-    // Add to beginning
-    const updated = [query, ...filtered].slice(0, 10); // Keep max 10
-    setRecentSearches(updated);
+  // Load recent searches from AsyncStorage
+  const loadRecentSearches = async () => {
+    try {
+      const stored = await AsyncStorage.getItem('@recent_searches');
+      if (stored) {
+        setRecentSearches(JSON.parse(stored));
+      }
+    } catch (error) {
+      console.error('Error loading recent searches:', error);
+    }
   };
 
-  // Clear recent searches
-  const clearRecentSearches = () => {
-    setRecentSearches([]);
+  // Load trending content
+  const loadTrendingContent = async () => {
+    try {
+      const [tracks, users, events] = await Promise.all([
+        searchService.getTrendingTracks(10),
+        searchService.getPopularUsers(10),
+        searchService.getUpcomingEvents(10)
+      ]);
+
+      if (tracks.success) setTrendingTracks(tracks.data);
+      if (users.success) setPopularUsers(users.data);
+      if (events.success) setUpcomingEvents(events.data);
+    } catch (error) {
+      console.error('Error loading trending content:', error);
+    }
   };
 
-  // Remove single recent search
-  const removeRecentSearch = (query) => {
-    setRecentSearches(recentSearches.filter(s => s !== query));
+  // Save recent searches to AsyncStorage
+  const saveRecentSearches = async (searches) => {
+    try {
+      await AsyncStorage.setItem('@recent_searches', JSON.stringify(searches));
+    } catch (error) {
+      console.error('Error saving recent searches:', error);
+    }
   };
 
-  // Search tracks
-  const searchTracks = (query) => {
-    if (!query.trim()) return [];
+  // Add search to recent searches
+  const addToRecentSearches = async (query, type = 'all') => {
+    if (!query || query.trim() === '') return;
 
-    const lowerQuery = query.toLowerCase();
-    return tracks.filter(track =>
-      track.title.toLowerCase().includes(lowerQuery) ||
-      track.artist.toLowerCase().includes(lowerQuery) ||
-      track.genre.toLowerCase().includes(lowerQuery)
+    const newSearch = {
+      id: Date.now().toString(),
+      query: query.trim(),
+      type,
+      timestamp: new Date().toISOString(),
+    };
+
+    // Remove duplicate if exists
+    const filtered = recentSearches.filter(
+      search => search.query.toLowerCase() !== query.toLowerCase()
     );
+
+    // Add new search to beginning and limit to 20
+    const updated = [newSearch, ...filtered].slice(0, 20);
+    setRecentSearches(updated);
+    await saveRecentSearches(updated);
+  };
+
+  // Wrapper for backward compatibility
+  const addRecentSearch = (query) => {
+    addToRecentSearches(query);
+  };
+
+  // Remove a recent search
+  const removeRecentSearch = async (searchId) => {
+    const updated = recentSearches.filter(search => search.id !== searchId);
+    setRecentSearches(updated);
+    await saveRecentSearches(updated);
+  };
+
+  // Clear all recent searches
+  const clearRecentSearches = async () => {
+    setRecentSearches([]);
+    await AsyncStorage.removeItem('@recent_searches');
+  };
+
+  // Search tracks/posts
+  const searchTracks = async (query) => {
+    if (!query || query.trim() === '') {
+      return [];
+    }
+
+    setLoading(true);
+    try {
+      const result = await searchService.searchTracks(query, 20);
+      await addToRecentSearches(query, 'tracks');
+      return result.success ? result.data : [];
+    } catch (error) {
+      console.error('Error searching tracks:', error);
+      return [];
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Search users
-  const searchUsers = (query) => {
-    if (!query.trim()) return [];
+  const searchUsers = async (query) => {
+    if (!query || query.trim() === '') {
+      return [];
+    }
 
-    const lowerQuery = query.toLowerCase();
-    return users.filter(user =>
-      user.name.toLowerCase().includes(lowerQuery) ||
-      user.username.toLowerCase().includes(lowerQuery) ||
-      user.genre.toLowerCase().includes(lowerQuery)
-    );
+    setLoading(true);
+    try {
+      const result = await searchService.searchUsers(query, 20);
+      await addToRecentSearches(query, 'users');
+      return result.success ? result.data : [];
+    } catch (error) {
+      console.error('Error searching users:', error);
+      return [];
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Search events
-  const searchEvents = (query) => {
-    if (!query.trim()) return [];
-
-    const lowerQuery = query.toLowerCase();
-    return events.filter(event =>
-      event.name.toLowerCase().includes(lowerQuery) ||
-      event.type.toLowerCase().includes(lowerQuery)
-    );
-  };
-
-  // Search all (unified search)
-  const searchAll = (query) => {
-    if (!query.trim()) {
-      return {
-        tracks: [],
-        users: [],
-        events: [],
-        total: 0,
-      };
+  const searchEvents = async (query) => {
+    if (!query || query.trim() === '') {
+      return [];
     }
 
-    const trackResults = searchTracks(query);
-    const userResults = searchUsers(query);
-    const eventResults = searchEvents(query);
+    setLoading(true);
+    try {
+      const result = await searchService.searchEvents(query, 20);
+      await addToRecentSearches(query, 'events');
+      return result.success ? result.data : [];
+    } catch (error) {
+      console.error('Error searching events:', error);
+      return [];
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    return {
-      tracks: trackResults,
-      users: userResults,
-      events: eventResults,
-      total: trackResults.length + userResults.length + eventResults.length,
-    };
+  // Search all content types
+  const searchAll = async (query) => {
+    if (!query || query.trim() === '') {
+      return { tracks: [], users: [], events: [] };
+    }
+
+    setLoading(true);
+    try {
+      const result = await searchService.searchAll(query, 10);
+      await addToRecentSearches(query, 'all');
+      return result.success ? result.data : { tracks: [], users: [], events: [] };
+    } catch (error) {
+      console.error('Error searching all:', error);
+      return { tracks: [], users: [], events: [] };
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Get trending tracks
-  const getTrendingTracks = (limit = 5) => {
-    return [...tracks].sort((a, b) => b.plays - a.plays).slice(0, limit);
+  const getTrendingTracks = () => {
+    return trendingTracks;
   };
 
   // Get popular users
-  const getPopularUsers = (limit = 5) => {
-    return [...users].sort((a, b) => b.followers - a.followers).slice(0, limit);
+  const getPopularUsers = () => {
+    return popularUsers;
   };
 
   // Get upcoming events
-  const getUpcomingEvents = (limit = 5) => {
-    return [...events]
-      .filter(event => new Date(event.date) > new Date())
-      .sort((a, b) => new Date(a.date) - new Date(b.date))
-      .slice(0, limit);
+  const getUpcomingEvents = () => {
+    return upcomingEvents;
+  };
+
+  // Refresh trending content
+  const refreshTrendingContent = async () => {
+    await loadTrendingContent();
   };
 
   const value = {
-    // Search functions
-    searchAll,
+    loading,
+    recentSearches,
+    trendingTracks,
+    popularUsers,
+    upcomingEvents,
     searchTracks,
     searchUsers,
     searchEvents,
-
-    // Recent searches
-    recentSearches,
-    addRecentSearch,
-    clearRecentSearches,
-    removeRecentSearch,
-
-    // Trending/Popular
+    searchAll,
     getTrendingTracks,
     getPopularUsers,
     getUpcomingEvents,
-
-    // Query state
+    addRecentSearch,
+    addToRecentSearches,
+    removeRecentSearch,
+    clearRecentSearches,
+    refreshTrendingContent,
     searchQuery,
     setSearchQuery,
   };
