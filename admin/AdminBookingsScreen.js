@@ -1,77 +1,62 @@
-import React, { useState } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Alert, ActivityIndicator, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useBookings } from '../contexts/BookingsContext';
 import { useSessions } from '../contexts/SessionsContext';
+import { getAllBookings, updateBookingStatus } from '../services/bookingsService';
 
 export default function AdminBookingsScreen() {
   const { completeBooking } = useBookings();
   const { createSessionFromBooking, hasSessionForBooking } = useSessions();
   const [filter, setFilter] = useState('pending'); // 'pending', 'confirmed', 'completed', 'cancelled'
+  const [bookings, setBookings] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const [bookings, setBookings] = useState([
-    { 
-      id: 1, 
-      user: 'Mike Soundz', 
-      email: 'mike@email.com',
-      type: 'music', 
-      date: 'Oct 28, 2025', 
-      time: '2:00 PM', 
-      duration: '2 hours',
-      price: 150,
-      status: 'pending',
-      notes: 'Need to record 3 songs for my EP'
-    },
-    { 
-      id: 2, 
-      user: 'Sarah Johnson', 
-      email: 'sarah@email.com',
-      type: 'podcast', 
-      date: 'Oct 28, 2025', 
-      time: '4:00 PM', 
-      duration: '2 hours',
-      price: 150,
-      status: 'pending',
-      notes: 'Interview episode with special guest'
-    },
-    { 
-      id: 3, 
-      user: 'Jay Beats', 
-      email: 'jay@email.com',
-      type: 'music', 
-      date: 'Oct 29, 2025', 
-      time: '10:00 AM', 
-      duration: '2 hours',
-      price: 150,
-      status: 'pending',
-      notes: ''
-    },
-    { 
-      id: 4, 
-      user: 'Lisa Chen', 
-      email: 'lisa@email.com',
-      type: 'podcast', 
-      date: 'Oct 27, 2025', 
-      time: '3:00 PM', 
-      duration: '2 hours',
-      price: 150,
-      status: 'confirmed',
-      notes: 'Regular weekly recording'
-    },
-    { 
-      id: 5, 
-      user: 'Marcus Smith', 
-      email: 'marcus@email.com',
-      type: 'music', 
-      date: 'Oct 25, 2025', 
-      time: '1:00 PM', 
-      duration: '2 hours',
-      price: 150,
-      status: 'completed',
-      notes: ''
-    },
-  ]);
+  // Load bookings from database
+  useEffect(() => {
+    loadBookings();
+  }, []);
+
+  const loadBookings = async () => {
+    setLoading(true);
+    try {
+      const result = await getAllBookings();
+      if (result.success) {
+        // Transform bookings to match expected format
+        const transformedBookings = result.data.map(booking => ({
+          id: booking.id,
+          user: booking.profiles?.full_name || booking.profiles?.username || 'Unknown User',
+          email: booking.profiles?.email || '',
+          type: booking.session_type,
+          date: new Date(booking.date).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+          }),
+          time: booking.time,
+          duration: `${booking.duration} hours`,
+          price: booking.price,
+          status: booking.status,
+          notes: booking.notes || ''
+        }));
+        setBookings(transformedBookings);
+      } else {
+        console.error('Failed to load bookings:', result.error);
+      }
+    } catch (error) {
+      console.error('Error loading bookings:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadBookings();
+    setRefreshing(false);
+  };
 
   const handleApprove = (booking) => {
     Alert.alert(
@@ -81,11 +66,22 @@ export default function AdminBookingsScreen() {
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Approve',
-          onPress: () => {
-            setBookings(bookings.map(b => 
-              b.id === booking.id ? { ...b, status: 'confirmed' } : b
-            ));
-            Alert.alert('Success', 'Booking approved! User will be notified.');
+          onPress: async () => {
+            try {
+              const result = await updateBookingStatus(booking.id, 'confirmed');
+              if (result.success) {
+                // Optimistically update UI
+                setBookings(bookings.map(b =>
+                  b.id === booking.id ? { ...b, status: 'confirmed' } : b
+                ));
+                Alert.alert('Success', 'Booking approved! User will be notified.');
+              } else {
+                Alert.alert('Error', result.error || 'Failed to approve booking');
+              }
+            } catch (error) {
+              console.error('Error approving booking:', error);
+              Alert.alert('Error', 'An unexpected error occurred');
+            }
           },
         },
       ]
@@ -101,11 +97,22 @@ export default function AdminBookingsScreen() {
         {
           text: 'Reject',
           style: 'destructive',
-          onPress: () => {
-            setBookings(bookings.map(b =>
-              b.id === booking.id ? { ...b, status: 'cancelled' } : b
-            ));
-            Alert.alert('Rejected', 'Booking rejected. User will be notified.');
+          onPress: async () => {
+            try {
+              const result = await updateBookingStatus(booking.id, 'cancelled');
+              if (result.success) {
+                // Optimistically update UI
+                setBookings(bookings.map(b =>
+                  b.id === booking.id ? { ...b, status: 'cancelled' } : b
+                ));
+                Alert.alert('Rejected', 'Booking rejected. User will be notified.');
+              } else {
+                Alert.alert('Error', result.error || 'Failed to reject booking');
+              }
+            } catch (error) {
+              console.error('Error rejecting booking:', error);
+              Alert.alert('Error', 'An unexpected error occurred');
+            }
           },
         },
       ]
@@ -126,22 +133,33 @@ export default function AdminBookingsScreen() {
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Complete',
-          onPress: () => {
-            // Update local state
-            setBookings(bookings.map(b =>
-              b.id === booking.id ? { ...b, status: 'completed' } : b
-            ));
+          onPress: async () => {
+            try {
+              // Update booking status to completed
+              const result = await updateBookingStatus(booking.id, 'completed');
+              if (result.success) {
+                // Update local state
+                setBookings(bookings.map(b =>
+                  b.id === booking.id ? { ...b, status: 'completed' } : b
+                ));
 
-            // Update context
-            completeBooking(booking.id);
+                // Update context
+                completeBooking(booking.id);
 
-            // Auto-create session
-            const session = createSessionFromBooking(booking);
+                // Auto-create session
+                const session = createSessionFromBooking(booking);
 
-            Alert.alert(
-              'Success',
-              `Booking completed!\n\nA draft session "${session.sessionName}" has been created. You can now upload files in the Sessions tab.`
-            );
+                Alert.alert(
+                  'Success',
+                  `Booking completed!\n\nA draft session "${session.sessionName}" has been created. You can now upload files in the Sessions tab.`
+                );
+              } else {
+                Alert.alert('Error', result.error || 'Failed to complete booking');
+              }
+            } catch (error) {
+              console.error('Error completing booking:', error);
+              Alert.alert('Error', 'An unexpected error occurred');
+            }
           },
         },
       ]
