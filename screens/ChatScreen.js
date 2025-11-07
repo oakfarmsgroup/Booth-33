@@ -5,12 +5,18 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useMessaging } from '../contexts/MessagingContext';
 
 export default function ChatScreen({ conversation, onBackPress }) {
-  const { sendMessage, markConversationAsRead, getConversation } = useMessaging();
+  const { sendMessage, markConversationAsRead, getConversation, conversations } = useMessaging();
   const [messageText, setMessageText] = useState('');
+  const [currentConversation, setCurrentConversation] = useState(conversation);
   const scrollViewRef = useRef(null);
 
-  // Get fresh conversation data
-  const currentConversation = getConversation(conversation.id);
+  // Update conversation when context data changes
+  useEffect(() => {
+    const updated = getConversation(conversation.id);
+    if (updated) {
+      setCurrentConversation(updated);
+    }
+  }, [conversations, conversation.id]);
 
   useEffect(() => {
     // Mark conversation as read when opening
@@ -20,7 +26,7 @@ export default function ChatScreen({ conversation, onBackPress }) {
     setTimeout(() => {
       scrollViewRef.current?.scrollToEnd({ animated: true });
     }, 100);
-  }, [currentConversation?.messages.length]);
+  }, [currentConversation?.messages?.length]);
 
   const handleSendMessage = () => {
     if (messageText.trim().length === 0) return;
