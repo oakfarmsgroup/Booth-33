@@ -28,7 +28,11 @@
       "Bash(node scripts/migrate-schema.js:*)",
       "Bash(node scripts/fix-api-config.js:*)",
       "Bash(start notepad:*)",
-      "Bash(timeout /t 3 /nobreak)"
+      "Bash(timeout /t 3 /nobreak)",
+      "Bash(nul)",
+      "Bash(echo:*)",
+      "Bash(fix_schema.sql)",
+      "Bash(del nul 2)"
     ],
     "deny": [],
     "ask": []
