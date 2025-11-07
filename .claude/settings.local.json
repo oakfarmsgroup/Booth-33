@@ -21,7 +21,13 @@
       "Bash(taskkill:*)",
       "Bash(start notepad supabase/setup_clean.sql)",
       "Bash(curl:*)",
-      "Bash(start notepad supabase/fix_schema.sql)"
+      "Bash(start notepad supabase/fix_schema.sql)",
+      "Bash(npx supabase --version)",
+      "Bash(npx supabase:*)",
+      "Bash(psql:*)",
+      "Bash(node scripts/migrate-schema.js:*)",
+      "Bash(node scripts/fix-api-config.js:*)",
+      "Bash(start notepad:*)"
     ],
     "deny": [],
     "ask": []

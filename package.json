@@ -32,9 +32,11 @@
   },
   "private": true,
   "devDependencies": {
+    "@databases/pg": "^5.5.0",
     "@playwright/mcp": "^0.0.45",
     "@playwright/test": "^1.56.1",
     "babel-preset-expo": "^54.0.6",
-    "chokidar-cli": "^3.0.0"
+    "chokidar-cli": "^3.0.0",
+    "pg": "^8.16.3"
   }
 }

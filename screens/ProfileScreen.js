@@ -8,6 +8,7 @@ import { useTier } from '../contexts/TierContext';
 import { darkenColor } from '../data/tierSystem';
 import { getUserProfile, updateUserProfile, uploadAvatar, getUserStats } from '../services/profileService';
 import { getCurrentUser, signOut } from '../config/supabase';
+import { getUserSettings, updateSetting } from '../services/userSettingsService';
 
 export default function ProfileScreen({ onLogout }) {
   const { credits, getTransactionHistory, getTotalGranted, getTotalUsed, isMonthlyBonusAvailable, grantMonthlyBonus, getDaysUntilNextBonus } = useCredits();
@@ -51,9 +52,10 @@ export default function ProfileScreen({ onLogout }) {
     cvv: '',
   });
 
-  // Load profile on mount
+  // Load profile and settings on mount
   useEffect(() => {
     loadProfile();
+    loadSettings();
   }, []);
 
   // Update edit form when profile loads
@@ -174,8 +176,44 @@ export default function ProfileScreen({ onLogout }) {
     );
   };
 
-  const toggleSetting = (key) => {
-    setSettings({ ...settings, [key]: !settings[key] });
+  const loadSettings = async () => {
+    try {
+      const result = await getUserSettings();
+      if (result.success && result.data) {
+        setSettings({
+          notifications: result.data.notifications,
+          emailNotifications: result.data.email_notifications,
+          publicProfile: result.data.public_profile,
+          showSessionHistory: result.data.show_session_history,
+        });
+      }
+    } catch (error) {
+      console.error('Error loading settings:', error);
+    }
+  };
+
+  const toggleSetting = async (key) => {
+    const newValue = !settings[key];
+    // Optimistically update UI
+    setSettings({ ...settings, [key]: newValue });
+
+    try {
+      // Map camelCase key to snake_case for database
+      const dbKey = key
+        .replace(/([A-Z])/g, '_$1')
+        .toLowerCase();
+
+      const result = await updateSetting(dbKey, newValue);
+      if (!result.success) {
+        // Revert on error
+        setSettings({ ...settings, [key]: !newValue });
+        Alert.alert('Error', 'Failed to update setting');
+      }
+    } catch (error) {
+      console.error('Error updating setting:', error);
+      // Revert on error
+      setSettings({ ...settings, [key]: !newValue });
+    }
   };
 
   // Payment Method Handlers
